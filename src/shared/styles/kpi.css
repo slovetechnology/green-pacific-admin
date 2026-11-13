@@ -1,0 +1,63 @@
+/* KPI dashboard additions. Everything else comes from executive.css and the
+   tokens in app.css, so light/dark theming needs nothing here. */
+
+/* Responsive card grid: 1 column on phones, filling up to 4 across. */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: 1px;
+  border: 1px solid var(--border);
+  border-radius: var(--exec-radius);
+  background: var(--border);
+  overflow: hidden;
+}
+@media (max-width: 480px) { .kpi-grid { grid-template-columns: 1fr; } }
+
+.kpi-card-x { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.75rem var(--exec-pad); background: var(--surface-1); min-width: 0; }
+
+/* Loading placeholders keep the final layout, so nothing jumps on arrival. */
+.kpi-skel {
+  display: block;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--gridline) 37%, var(--surface-2) 63%);
+  background-size: 400% 100%;
+  animation: kpi-shimmer 1.4s ease infinite;
+}
+@keyframes kpi-shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+@media (prefers-reduced-motion: reduce) { .kpi-skel { animation: none; } }
+
+/* Controls row */
+.kpi-controls { align-items: center; }
+.kpi-switch { display: inline-flex; border: 1px solid var(--border); border-radius: var(--exec-radius); overflow: hidden; }
+.kpi-switch button { padding: 0.35rem 0.8rem; border: 0; border-right: 1px solid var(--border); background: var(--surface-0); color: var(--text-secondary); font-size: var(--text-sm); font-weight: 700; cursor: pointer; }
+.kpi-switch button:last-child { border-right: 0; }
+.kpi-switch button.is-active { background: var(--brand); color: var(--on-brand, #fff); }
+.kpi-freshness { margin-left: auto; color: var(--text-muted); font-size: var(--text-xs); }
+.kpi-refresh { margin-left: 0; }
+.kpi-refresh:disabled { opacity: 0.6; cursor: progress; }
+
+/* Quota attainment: number over a thin meter */
+.kpi-attain { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 0.2rem; min-width: 5rem; }
+.kpi-attain .exec-meter { width: 100%; }
+.exec-table td .exec-meter { margin-top: 0.3rem; }
+
+/* Producer: renewal calendar and task queue */
+.kpi-cal { display: flex; flex-direction: column; }
+.kpi-cal-head { display: flex; justify-content: space-between; padding: 0.35rem var(--exec-pad); background: var(--surface-2); border-bottom: 1px solid var(--border); color: var(--text-secondary); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.kpi-cal-head.is-crit { color: var(--status-critical); }
+.kpi-cal-head.is-warn { color: var(--status-warning); }
+.kpi-cal ul, .kpi-queue { margin: 0; padding: 0; list-style: none; }
+.kpi-cal li { display: grid; grid-template-columns: 3.75rem minmax(0, 1fr) auto; gap: 0.6rem; align-items: baseline; padding: 0.45rem var(--exec-pad); border-bottom: 1px solid var(--gridline); font-size: var(--text-sm); }
+.kpi-cal-date { color: var(--text-muted); font-weight: 700; }
+.kpi-cal-meta { color: var(--text-muted); font-size: var(--text-xs); text-align: right; }
+.kpi-queue li { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; padding: 0.5rem var(--exec-pad); border-bottom: 1px solid var(--gridline); font-size: var(--text-sm); }
+.kpi-queue-title { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .kpi-cal li { grid-template-columns: 3.25rem minmax(0, 1fr); }
+  .kpi-cal-meta { grid-column: 2; text-align: left; }
+  .kpi-freshness { margin-left: 0; width: 100%; }
+}
+
+/* Analytics: share-of-leader bar under a carrier name */
+.analytics-bar { height: 4px; margin-top: 4px; border-radius: 2px; background: var(--gridline); overflow: hidden; }
+.analytics-bar span { display: block; height: 100%; background: var(--series-1, var(--brand)); }

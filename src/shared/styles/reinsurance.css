@@ -1,0 +1,34 @@
+/* Reinsurance module: placement workspace, timeline and the running-total bar.
+   Uses the shared custom properties (--status-*, --surface-*, --border) so light
+   and dark themes both work. */
+.ri-timeline { display: flex; gap: 0.25rem; overflow-x: auto; padding: 0.25rem 0 0.75rem; margin-bottom: 0.5rem; }
+.ri-step { flex: 0 0 auto; padding: 0.3rem 0.65rem; border-radius: 999px; font-size: var(--text-xs, 0.75rem); font-weight: 600;
+  background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); white-space: nowrap; }
+.ri-step.done { color: var(--status-good); border-color: color-mix(in srgb, var(--status-good) 40%, var(--border)); }
+.ri-step.current { background: var(--brand-tint, var(--surface-2)); color: var(--brand-dark, var(--text-primary)); border-color: var(--brand, var(--border)); }
+.ri-step.ended { color: var(--status-critical); border-color: var(--status-critical); }
+
+.ri-columns { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(520px, 1.6fr); gap: 1rem; align-items: start; }
+@media (max-width: 1400px) { .ri-columns { grid-template-columns: 1fr; } }
+
+.ri-total { margin: 0.75rem 0 0.25rem; }
+.ri-total-bar { position: relative; height: 12px; border-radius: 6px; background: var(--surface-2); overflow: hidden; border: 1px solid var(--border); }
+.ri-total-fill { position: absolute; inset: 0 auto 0 0; background: var(--brand, #1c5cab); }
+.ri-total.reconciled .ri-total-fill { background: var(--status-good); }
+.ri-total.over .ri-total-fill { background: var(--status-warning); }
+.ri-total-label { display: flex; justify-content: space-between; font-size: 0.85rem; margin-top: 0.3rem; font-variant-numeric: tabular-nums; }
+
+.ri-lines input.ri-pct { width: 5.5rem; text-align: right; font-variant-numeric: tabular-nums; }
+.ri-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ri-flag { cursor: help; margin-left: 0.25rem; }
+.ri-flag.block { color: var(--status-critical); }
+.ri-flag.warn { color: var(--status-warning); }
+.ri-alerts ul { margin: 0.25rem 0 0 1.1rem; padding: 0; font-weight: 400; }
+.ri-note { color: var(--text-muted); font-size: 0.82rem; }
+.ri-inline { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-end; margin: 0.5rem 0; }
+.ri-inline .field { margin: 0; }
+
+.badge-bound, .badge-signed, .badge-slip-signed, .badge-approved, .badge-acknowledged, .badge-documented { color: var(--status-good); background: color-mix(in srgb, var(--status-good) 14%, transparent); }
+.badge-firm-order, .badge-quoted, .badge-quotes-in, .badge-marketed, .badge-submitted, .badge-open, .badge-pending, .badge-draft { color: var(--status-warning); background: color-mix(in srgb, var(--status-warning) 20%, transparent); }
+.badge-declined, .badge-lapsed, .badge-rejected, .badge-expired, .badge-flagged { color: var(--status-critical); background: color-mix(in srgb, var(--status-critical) 14%, transparent); }
+.badge-superseded, .badge-cancelled, .badge-closed, .badge-enquiry, .badge-sent, .badge-invited { color: var(--text-muted); background: color-mix(in srgb, var(--text-muted) 16%, transparent); }

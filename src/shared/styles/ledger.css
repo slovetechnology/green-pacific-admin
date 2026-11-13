@@ -1,0 +1,59 @@
+/* General Ledger pages (features/finance/ledger). Uses the theme tokens from app.css only. */
+.ledger-intro { color: var(--text-muted); font-size: 0.9rem; max-width: 70ch; }
+.ledger-note { color: var(--text-muted); font-size: 0.85rem; margin: 0.4rem 0; }
+.ledger-memo { color: var(--text-muted); font-size: 0.8rem; }
+.ledger-problem { color: var(--status-critical); font-size: 0.8rem; }
+.ledger-tag { margin-left: 0.4rem; }
+.ledger-code { color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ledger-toolbar .toolbar { align-items: flex-end; flex-wrap: wrap; }
+.ledger-field { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.8rem; color: var(--text-muted); }
+.ledger-toolbar-actions { display: flex; gap: 0.4rem; margin-left: auto; flex-wrap: wrap; }
+.ledger-statement td.num, .ledger-statement th.num, .ledger-lines .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ledger-section-head th { background: var(--surface-2); text-align: left; font-weight: 700; }
+.ledger-subtotal td { font-weight: 600; border-top: 1px solid var(--border); }
+.ledger-grand-total th { border-top: 2px solid var(--text-secondary, var(--border)); font-weight: 700; }
+.ledger-bottom-line { display: flex; justify-content: space-between; align-items: center; font-size: 1.05rem; }
+.ledger-bottom-line strong { font-variant-numeric: tabular-nums; }
+.ledger-good { color: var(--status-good); }
+.ledger-bad { color: var(--status-critical); }
+.ledger-check { margin-bottom: 0.5rem; }
+.ledger-steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.35rem; }
+.ledger-steps li.done { color: var(--text-muted); }
+.ledger-links { padding-left: 1.1rem; display: grid; gap: 0.3rem; }
+.ledger-switches { list-style: none; padding: 0; display: grid; gap: 0.6rem; margin: 0.8rem 0; }
+.ledger-switches label { display: flex; gap: 0.5rem; align-items: center; }
+.ledger-switches .ledger-memo { margin-left: 1.6rem; }
+.ledger-group { font-size: 0.9rem; margin: 0.8rem 0 0.3rem; }
+.ledger-rule { width: 45%; }
+.ledger-wide { grid-column: 1 / -1; }
+.ledger-search input { min-width: 16rem; }
+.ledger-lines select { min-width: 18rem; max-width: 100%; }
+.ledger-lines input { width: 100%; min-width: 7rem; }
+.ledger-check-label { display: inline-flex; gap: 0.3rem; align-items: center; }
+@media (max-width: 640px) {
+  .ledger-toolbar-actions { margin-left: 0; width: 100%; }
+  .ledger-search input { min-width: 0; width: 100%; }
+  .ledger-lines select { min-width: 12rem; }
+}
+/* Phones: a narrow account-code column and tighter cells so amounts are never cut off. */
+@media (max-width: 640px) {
+  .ledger-statement .ledger-code { width: 1%; font-size: 0.72rem; }
+  .ledger-statement th, .ledger-statement td { padding-left: 0.35rem; padding-right: 0.35rem; font-size: 0.85rem; }
+  .ledger-statement td.num, .ledger-statement th.num { white-space: nowrap; }
+}
+.ledger-year-head { display: flex; align-items: center; gap: 0.6rem; }
+.ledger-year-head h2 { margin: 0; }
+.ledger-chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1rem; }
+@media (max-width: 640px) { .ledger-chart-grid { grid-template-columns: 1fr; } }
+.ledger-pack-status { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; border-left: 4px solid var(--status-warning); }
+.ledger-pack-status.final { border-left-color: var(--status-good); }
+.ledger-ratios { display: flex; flex-wrap: wrap; gap: 0.6rem 1.6rem; }
+.ledger-ratios strong { margin-left: 0.3rem; font-variant-numeric: tabular-nums; }
+.ledger-commentary { display: grid; gap: 0.3rem; margin-bottom: 0.9rem; }
+.ledger-commentary textarea { width: 100%; font: inherit; }
+.ledger-commentary-text { white-space: pre-wrap; margin: 0; }
+.ledger-two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 1rem; }
+/* Budgets grid: 12 month inputs per row, scrolling sideways inside its card on narrow screens. */
+.ledger-budget input { width: 6.5rem; min-width: 0; text-align: right; font-variant-numeric: tabular-nums; padding: 0.25rem 0.4rem; }
+.ledger-budget td:first-child { min-width: 14rem; }
+.ledger-budget td, .ledger-budget th { padding-left: 0.3rem; padding-right: 0.3rem; }
