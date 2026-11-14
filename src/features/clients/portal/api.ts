@@ -99,6 +99,8 @@ export interface PortalRequestDetail {
   idle_days: number | null;
   submitted_at: string | null;
   abandon_reason: string | null;
+  /** The policy this request renews (started from the customer's policies), or null. */
+  renewal_of_policy_id?: number | null;
   abandon_note: string | null;
   quote_request_id: number | null;
   quote: PortalQuote | null;

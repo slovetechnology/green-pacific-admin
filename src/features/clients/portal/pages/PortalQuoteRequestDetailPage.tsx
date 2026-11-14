@@ -65,7 +65,10 @@ export function PortalQuoteRequestDetailPage() {
         <div>
           <p className="eyebrow"><Link to="/portal/quote-requests">Portal Quote Requests</Link> · {r.reference ?? "Draft"}</p>
           <h1>{r.product.name}</h1>
-          <p className="page-lede">{r.product.provider_name} · {r.customer?.name ?? "—"}</p>
+          <p className="page-lede">
+            {r.product.provider_name} · {r.customer?.name ?? "—"}
+            {r.renewal_of_policy_id ? <> · Renewal of <Link to={`/transactions/${r.renewal_of_policy_id}`}>policy #{r.renewal_of_policy_id}</Link></> : null}
+          </p>
         </div>
         <div className="page-header-actions">
           <StatusBadge status={r.status} />
