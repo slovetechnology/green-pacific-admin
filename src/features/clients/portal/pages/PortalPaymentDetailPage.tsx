@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, openApiFile } from "@/shared/api/client";
 import { StatusBadge } from "@/shared/components/StatusBadge";
+import { Modal } from "@/shared/components/exec/Modal";
 import { RoleGate } from "@/app/guards/RoleGate";
 import { fmtMoney } from "@/shared/lib/format";
 import { PAYMENT_STATUS_LABELS, POLICY_STATUS_LABELS, dateTime, type PortalPaymentDetail } from "../api";
@@ -24,6 +25,7 @@ export function PortalPaymentDetailPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [reason, setReason] = useState("");
+  const [confirming, setConfirming] = useState<"approve" | "reject" | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["portal-payment", id],
@@ -31,8 +33,14 @@ export function PortalPaymentDetailPage() {
     refetchInterval: (q) => (q.state.data?.data.policy_detail?.status === "issuing" ? 5000 : false),
   });
 
-  async function review(kind: "approve" | "reject", e: FormEvent) {
+  // The forms only open the confirmation; the review is sent from the dialog.
+  function askToConfirm(kind: "approve" | "reject", e: FormEvent) {
     e.preventDefault();
+    setConfirming(kind);
+  }
+
+  async function review(kind: "approve" | "reject") {
+    setConfirming(null);
     setError(null);
     setNotice(null);
     setBusy(kind);
@@ -119,6 +127,42 @@ export function PortalPaymentDetailPage() {
         </div>
       )}
 
+      <Modal
+        open={confirming !== null}
+        title={confirming === "approve" ? "Approve this payment?" : "Reject this payment?"}
+        onClose={() => setConfirming(null)}
+        footer={<>
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => setConfirming(null)}>Cancel</button>
+          {confirming === "approve"
+            ? <button type="button" className="btn btn-sm" onClick={() => review("approve")}>Yes, approve and issue</button>
+            : <button type="button" className="btn-danger btn btn-sm" onClick={() => review("reject")}>Yes, reject payment</button>}
+        </>}
+      >
+        <div className="detail-grid">
+          <Field label="Amount" value={fmtMoney(p.amount)} />
+          <Field label="Narration" value={p.reference} />
+          <Field label="Customer" value={p.customer?.name} />
+          <Field label="Product" value={p.quote_request.product_name} />
+        </div>
+        {confirming === "approve" ? (
+          <>
+            <p className="text-muted">Only approve when {fmtMoney(p.amount)} with narration <strong>{p.reference}</strong> is on the bank statement. Approving:</p>
+            <ul className="text-muted">
+              <li>records the receipt in the ERP,</li>
+              <li>asks the insurer to issue the policy,</li>
+              <li>emails the customer a payment receipt.</li>
+            </ul>
+            {note && <p className="text-muted">Note: {note}</p>}
+            <p className="text-muted">This can't be undone.</p>
+          </>
+        ) : (
+          <>
+            <p className="text-muted">The customer is emailed this reason and can pay again:</p>
+            <blockquote style={{ whiteSpace: "pre-line" }}>{reason}</blockquote>
+          </>
+        )}
+      </Modal>
+
       <RoleGate need="write">
         {reviewable && (
           <div className="card">
@@ -126,7 +170,7 @@ export function PortalPaymentDetailPage() {
             {p.status === "initiated" && <p className="page-lede">The customer has not uploaded proof yet. You can approve once they do, or reject it now.</p>}
             <div className="form-grid">
               {p.status === "pending" && (
-                <form className="field span-2" onSubmit={(e) => review("approve", e)}>
+                <form className="field span-2" onSubmit={(e) => askToConfirm("approve", e)}>
                   <label htmlFor="approve_note">Approve: the money is on the bank statement</label>
                   <input id="approve_note" placeholder="Note (optional), e.g. statement line" value={note} onChange={(e) => setNote(e.target.value)} />
                   <div className="form-actions">
@@ -134,7 +178,7 @@ export function PortalPaymentDetailPage() {
                   </div>
                 </form>
               )}
-              <form className="field span-2" onSubmit={(e) => review("reject", e)}>
+              <form className="field span-2" onSubmit={(e) => askToConfirm("reject", e)}>
                 <label htmlFor="reject_reason">Reject: the customer sees this reason and can pay again</label>
                 <textarea id="reject_reason" rows={2} required value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. No transfer with this reference reached our account." />
                 <div className="form-actions">
