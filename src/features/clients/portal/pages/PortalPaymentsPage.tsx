@@ -16,11 +16,16 @@ export function PortalPaymentsPage() {
   const [params, setParams] = useSearchParams();
   const status = params.get("status") ?? "pending";
 
+  // Every payment is loaded once and split by status here, so each tab shows its count and an approved payment
+  // stays one click away (it leaves "To check" once reviewed).
   const { data, isLoading } = useQuery({
-    queryKey: ["portal-payments", status],
-    queryFn: () => api.get<{ data: PortalPayment[] }>(`/api/customer-payments${status ? `?status=${status}` : ""}`),
+    queryKey: ["portal-payments", "all"],
+    queryFn: () => api.get<{ data: PortalPayment[] }>("/api/customer-payments"),
   });
-  const rows = data?.data ?? [];
+  const all = data?.data ?? [];
+  const rows = status ? all.filter((p) => p.status === status) : all;
+  const countOf = (s: string) => all.filter((p) => p.status === s).length;
+  const choose = (next: string) => { const q = new URLSearchParams(params); q.set("status", next); setParams(q); };
   const search = useRowSearch(rows, (p) => [p.reference, p.payer_reference, p.payer_name, p.customer?.name, p.customer?.email, p.quote_request.reference]);
 
   const columns: DataGridColumn<PortalPayment>[] = [
@@ -55,15 +60,16 @@ export function PortalPaymentsPage() {
 
       <MetricStrip metrics={metrics} label="Portal payment summary" />
 
-      <form className="exec-filters" onSubmit={(e) => e.preventDefault()} aria-label="Portal payment filters">
-        <label className="exec-filter">
-          <span>Status</span>
-          <select value={status} onChange={(e) => { const next = new URLSearchParams(params); next.set("status", e.target.value); setParams(next); }}>
-            <option value="">All</option>
-            {STATUSES.map((s) => <option key={s} value={s}>{PAYMENT_STATUS_LABELS[s]}</option>)}
-          </select>
-        </label>
-      </form>
+      <div className="exec-tabs" role="tablist" aria-label="Payment status">
+        {STATUSES.map((s) => (
+          <button key={s} type="button" role="tab" aria-selected={status === s} className={`exec-tab${status === s ? " is-active" : ""}`} onClick={() => choose(s)}>
+            {PAYMENT_STATUS_LABELS[s]} <span className="exec-tab-count">{countOf(s)}</span>
+          </button>
+        ))}
+        <button type="button" role="tab" aria-selected={status === ""} className={`exec-tab${status === "" ? " is-active" : ""}`} onClick={() => choose("")}>
+          All <span className="exec-tab-count">{all.length}</span>
+        </button>
+      </div>
 
       <ListSearch value={search.query} onChange={search.setQuery} placeholder="Reference, bank reference, customer or request…" shown={search.shown} total={search.total} />
       <DataGrid columns={columns} rows={search.filtered} isLoading={isLoading} getRowKey={(p) => p.id} emptyMessage="No payments here." />

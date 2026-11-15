@@ -73,6 +73,10 @@ export function QuoteRequestsListPage() {
         <div>
           <span className="exec-eyebrow">Inbox</span>
           <h1>Quote Requests</h1>
+          <p className="page-lede">
+            Requests from the website and those entered by staff. Customer portal requests are handled on{" "}
+            <Link to="/portal/quote-requests">Customer Portal › Portal Quote Requests</Link>, with their quote, payment, policy and deal on one page.
+          </p>
         </div>
       </header>
 

@@ -131,34 +131,36 @@ export function PortalPaymentDetailPage() {
         open={confirming !== null}
         title={confirming === "approve" ? "Approve this payment?" : "Reject this payment?"}
         onClose={() => setConfirming(null)}
+        wide
         footer={<>
-          <button type="button" className="btn btn-outline btn-sm" onClick={() => setConfirming(null)}>Cancel</button>
+          <button type="button" className="btn-secondary btn" onClick={() => setConfirming(null)}>Cancel</button>
           {confirming === "approve"
-            ? <button type="button" className="btn btn-sm" onClick={() => review("approve")}>Yes, approve and issue</button>
-            : <button type="button" className="btn-danger btn btn-sm" onClick={() => review("reject")}>Yes, reject payment</button>}
+            ? <button type="button" className="btn" onClick={() => review("approve")}>Yes, approve and issue</button>
+            : <button type="button" className="btn-danger btn" onClick={() => review("reject")}>Yes, reject payment</button>}
         </>}
       >
-        <div className="detail-grid">
-          <Field label="Amount" value={fmtMoney(p.amount)} />
-          <Field label="Narration" value={p.reference} />
-          <Field label="Customer" value={p.customer?.name} />
-          <Field label="Product" value={p.quote_request.product_name} />
+        <div className="confirm-summary">
+          <div><div className="k">Amount</div><div className="v is-amount">{fmtMoney(p.amount)}</div></div>
+          <div><div className="k">Narration</div><div className="v">{p.reference}</div></div>
+          <div><div className="k">Customer</div><div className="v">{p.customer?.name ?? "—"}</div></div>
+          <div><div className="k">Product</div><div className="v">{p.quote_request.product_name ?? "—"}</div></div>
         </div>
         {confirming === "approve" ? (
           <>
-            <p className="text-muted">Only approve when {fmtMoney(p.amount)} with narration <strong>{p.reference}</strong> is on the bank statement. Approving:</p>
-            <ul className="text-muted">
-              <li>records the receipt in the ERP,</li>
-              <li>asks the insurer to issue the policy,</li>
-              <li>emails the customer a payment receipt.</li>
+            <p className="confirm-note">Only approve when <strong>{fmtMoney(p.amount)}</strong> with narration <strong>{p.reference}</strong> is on the bank statement. This can't be undone.</p>
+            <p className="confirm-lede">Approving will:</p>
+            <ul className="confirm-steps">
+              <li>record the receipt in the ERP</li>
+              <li>ask the insurer to issue the policy</li>
+              <li>email the customer their payment receipt</li>
             </ul>
-            {note && <p className="text-muted">Note: {note}</p>}
-            <p className="text-muted">This can't be undone.</p>
+            {note && <p className="confirm-lede"><span className="muted small">Your note:</span> {note}</p>}
           </>
         ) : (
           <>
-            <p className="text-muted">The customer is emailed this reason and can pay again:</p>
-            <blockquote style={{ whiteSpace: "pre-line" }}>{reason}</blockquote>
+            <p className="confirm-lede">The customer is emailed this reason and can pay again:</p>
+            <blockquote className="confirm-quote">{reason}</blockquote>
+            <p className="confirm-note is-danger">The payment is closed as not confirmed. The quote stays open for a new payment.</p>
           </>
         )}
       </Modal>

@@ -30,6 +30,8 @@ interface QuoteRequest {
   handled_by: string | null;
   handled_at: string | null;
   deal_id: number | null;
+  /** The customer portal request this row belongs to: it is handled on that page. */
+  portal_request_id?: number | null;
 }
 
 interface Response {
@@ -112,6 +114,12 @@ export function QuoteRequestDetailPage() {
 
   return (
     <div>
+      {qr.portal_request_id && (
+        <div className="flash flash-info">
+          This is a customer portal request. Its quote, payment, policy and deal are handled on{" "}
+          <Link to={`/portal/quote-requests/${qr.portal_request_id}`}>its portal page →</Link>
+        </div>
+      )}
       <div className="page-header">
         <div>
           <p className="eyebrow">

@@ -110,6 +110,11 @@ export interface PortalRequestDetail {
   next_step: string | null;
   erp_policy: { id: number; policy_no: string | null; status: string; premium_due: number; premium_paid: number; balance_os: number; debit_note_no: string | null } | null;
   follow_ups: FollowUp[];
+  /** Its row in the quote request inbox and its Pipeline deal (handled from this page). */
+  sales: {
+    inbox_id: number; inbox_status: string; staff_notes: string | null; handled_by: string | null; handled_at: string | null; client_id: number | null;
+    deal: { id: number; deal_name: string; stage: string; owner: string | null; expected_close_date: string | null; estimated_premium: number | null; deal_type: string; next_action: string | null; next_action_at: string | null } | null;
+  } | null;
 }
 
 export type PaymentStatus = "initiated" | "pending" | "approved" | "rejected" | "cancelled";

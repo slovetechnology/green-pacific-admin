@@ -84,20 +84,7 @@
 .pl-tick.is-no { color: var(--status-warning); }
 
 /* ---- modal ---- */
-.pl-modal { width: min(32rem, calc(100vw - 2rem)); max-height: calc(100vh - 3rem); padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-1); color: var(--text-primary); box-shadow: 0 18px 48px var(--brand-shadow); }
-.pl-modal.is-wide { width: min(44rem, calc(100vw - 2rem)); }
-.pl-modal { overflow: hidden; }
-.pl-modal::backdrop { background: rgb(0 0 0 / 0.45); }
-.pl-modal-body { display: flex; flex-direction: column; max-height: calc(100vh - 3rem); overflow-y: auto; overflow-x: hidden; }
-.pl-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.8rem 1rem; border-bottom: 1px solid var(--border); background: var(--surface-2); }
-.pl-modal-head h2 { margin: 0; font-size: 1.05rem; }
-.pl-modal-content, .pl-form { display: flex; flex-direction: column; gap: 0.8rem; }
-.pl-modal-content { padding: 1rem; }
-.pl-form .pl-modal-foot { margin: 0.4rem -1rem -1rem; position: sticky; bottom: -1rem; }
-.pl-modal-foot { z-index: 1; display: flex; justify-content: flex-end; gap: 0.5rem; padding: 0.7rem 1rem; border-top: 1px solid var(--border); background: var(--surface-2); }
-.pl-modal .field { display: flex; flex-direction: column; gap: 0.2rem; }
-.pl-modal .field label { font-size: var(--text-xs); font-weight: 700; color: var(--text-secondary); }
-.pl-modal .field input, .pl-modal .field select, .pl-modal .field textarea { width: 100%; }
+/* The dialog (.pl-modal) styles are global, in app.css: the shared Modal is used outside the Pipeline too. */
 .pl-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; }
 @media (max-width: 600px) { .pl-grid-2 { grid-template-columns: minmax(0, 1fr); } }
 .pl-hint { margin: 0; color: var(--text-muted); font-size: var(--text-xs); }

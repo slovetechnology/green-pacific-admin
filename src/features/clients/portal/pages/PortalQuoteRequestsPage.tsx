@@ -10,10 +10,15 @@ import { fmtMoney } from "@/shared/lib/format";
 import "@/shared/styles/executive.css";
 import { POLICY_STATUS_LABELS, QUOTE_STATUS_LABELS, providerName, shortDate, type PortalRequestRow } from "../api";
 
-// "Needs action" is what staff must do: get a quote the insurer could not give online, or place a paid policy.
+// A submitted request with no Pipeline deal yet (the customer had no client record): staff open it from the request
+// page. Not while it waits for the KYC (its deal opens when the KYC is verified).
+const needsDeal = (r: PortalRequestRow) => r.status === "submitted" && r.review_status === "New" && r.quote?.status !== "awaiting_kyc";
+
+// "Needs action" is what staff must do: get a quote the insurer could not give online, place a paid policy, or open
+// the deal for a request that got none (these requests are no longer in the quote request inbox).
 const VIEWS: { key: string; label: string; query: string; keep?: (r: PortalRequestRow) => boolean }[] = [
   { key: "", label: "All", query: "" },
-  { key: "action", label: "Needs action", query: "status=submitted", keep: (r) => r.quote?.status === "awaiting_staff" || r.policy?.status === "awaiting_staff" },
+  { key: "action", label: "Needs action", query: "status=submitted", keep: (r) => r.quote?.status === "awaiting_staff" || r.policy?.status === "awaiting_staff" || needsDeal(r) },
   { key: "draft", label: "Unfinished drafts", query: "status=draft" },
   { key: "idle", label: "Drafts idle 3+ days", query: "status=draft&idle_days=3" },
   { key: "submitted", label: "Submitted", query: "status=submitted" },
@@ -22,6 +27,7 @@ const VIEWS: { key: string; label: string; query: string; keep?: (r: PortalReque
 
 function stage(r: PortalRequestRow) {
   if (r.status !== "submitted") return null;
+  if (needsDeal(r) && r.quote?.status !== "awaiting_staff" && r.policy?.status !== "awaiting_staff") return "Sales: open the deal";
   if (r.policy) return `Policy: ${POLICY_STATUS_LABELS[r.policy.status] ?? r.policy.status}`;
   if (r.quote) return `Quote: ${QUOTE_STATUS_LABELS[r.quote.status] ?? r.quote.status}`;
   return null;
@@ -64,6 +70,7 @@ export function PortalQuoteRequestsPage() {
     { key: "shown", label: view.label, value: rows.length },
     { key: "quote", label: "Need our quote", value: all.filter((r) => r.quote?.status === "awaiting_staff").length, tone: all.some((r) => r.quote?.status === "awaiting_staff") ? "warn" : "neutral" },
     { key: "policy", label: "Paid, policy to place", value: all.filter((r) => r.policy?.status === "awaiting_staff").length, tone: all.some((r) => r.policy?.status === "awaiting_staff") ? "warn" : "neutral" },
+    { key: "deal", label: "No deal yet", value: all.filter(needsDeal).length, tone: all.some(needsDeal) ? "warn" : "neutral" },
     { key: "issued", label: "Policies issued", value: all.filter((r) => r.policy?.status === "issued").length, tone: "good" },
   ];
 

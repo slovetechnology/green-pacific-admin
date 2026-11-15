@@ -1,9 +1,10 @@
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { RoleGate } from "@/app/guards/RoleGate";
+import { Modal } from "@/shared/components/exec/Modal";
 import { fmtMoney } from "@/shared/lib/format";
 import {
   FOLLOW_UP_REASONS, PAYMENT_STATUS_LABELS, POLICY_STATUS_LABELS, QUOTE_STATUS_LABELS, dateTime, providerName, shortDate,
@@ -28,6 +29,9 @@ export function PortalQuoteRequestDetailPage() {
   const [quoteForm, setQuoteForm] = useState({ premium: "", insurer_quote_no: "", note: "" });
   const [policyForm, setPolicyForm] = useState({ policy_no: "", start_date: "", end_date: "" });
   const [followUp, setFollowUp] = useState({ note: "", reason: "" });
+  const [converting, setConverting] = useState(false);
+  const [chooseClient, setChooseClient] = useState(false);
+  const navigate = useNavigate();
 
   const { data, isLoading } = useQuery({
     queryKey: ["portal-quote-request", id],
@@ -53,6 +57,27 @@ export function PortalQuoteRequestDetailPage() {
     }
   }
 
+  // A request with no deal yet (no client when it was submitted): staff confirm it and open the deal from here.
+  async function convertToDeal(clientId: number | null) {
+    const inboxId = data?.data.sales?.inbox_id;
+    if (!inboxId) return;
+    setError(null);
+    setBusy("convert");
+    try {
+      const res = await api.post<{ dealId: number }>(`/api/quote-requests/${inboxId}/convert`, clientId ? { client_id: clientId } : {});
+      setConverting(false);
+      await queryClient.invalidateQueries({ queryKey: ["portal-quote-request", id] });
+      navigate(`/deals/${res.dealId}`);
+    } catch (err) {
+      setConverting(false);
+      setChooseClient(Boolean(err instanceof ApiError && Array.isArray(err.data?.candidates) && err.data.candidates.length));
+      const missing = (err instanceof ApiError ? (err.data?.missing as { message: string }[] | undefined) : undefined) ?? [];
+      setError(err instanceof ApiError ? [err.message, ...missing.map((m) => m.message)].join(" ") : "Something went wrong. Please try again.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   if (isLoading) return <p>Loading…</p>;
   const r = data?.data;
   if (!r) return <p>Quote request not found.</p>;
@@ -72,11 +97,16 @@ export function PortalQuoteRequestDetailPage() {
         </div>
         <div className="page-header-actions">
           <StatusBadge status={r.status} />
-          {r.quote_request_id && <Link className="btn-secondary btn" to={`/quote-requests/${r.quote_request_id}`}>Open in inbox</Link>}
+          {r.sales?.deal && <Link className="btn" to={`/deals/${r.sales.deal.id}`}>Open deal</Link>}
         </div>
       </div>
 
-      {error && <div className="flash flash-error">{error}</div>}
+      {error && (
+        <div className="flash flash-error">
+          {error}
+          {chooseClient && r.sales && <> <Link to={`/quote-requests/${r.sales.inbox_id}`}>Choose the client →</Link></>}
+        </div>
+      )}
       {notice && <div className="flash flash-success">{notice}</div>}
 
       <div className="card">
@@ -91,6 +121,66 @@ export function PortalQuoteRequestDetailPage() {
           {r.status === "abandoned" && <Field label="Why discarded" value={[r.abandon_reason, r.abandon_note].filter(Boolean).join(" — ")} />}
         </div>
       </div>
+
+      {submitted && r.sales && (
+        <div className="card">
+          <h2>Sales &amp; deal</h2>
+          <div className="detail-grid">
+            <Field label="Request status" value={<StatusBadge status={r.sales.inbox_status} />} />
+            {r.sales.deal ? (
+              <>
+                <Field label="Deal" value={<Link to={`/deals/${r.sales.deal.id}`}>{r.sales.deal.deal_name} →</Link>} />
+                <Field label="Stage" value={<StatusBadge status={r.sales.deal.stage} />} />
+                <Field label="Owner" value={r.sales.deal.owner ?? "Not assigned yet (assign on the deal)"} />
+                <Field label="Expected close" value={r.sales.deal.expected_close_date} />
+                <Field label="Type" value={r.sales.deal.deal_type} />
+                {r.sales.deal.next_action && <Field label="Next action" value={`${r.sales.deal.next_action}${r.sales.deal.next_action_at ? ` (${shortDate(r.sales.deal.next_action_at)})` : ""}`} />}
+              </>
+            ) : (
+              <Field label="Deal" value="None yet" />
+            )}
+            {r.sales.staff_notes && <Field label="Staff notes" value={r.sales.staff_notes} />}
+          </div>
+          {!r.sales.deal && (
+            <>
+              <p className="page-lede" style={{ marginTop: "0.75rem" }}>
+                {r.customer?.client_id
+                  ? "The deal opens by itself once the customer's KYC is verified. You can open it now."
+                  : "No deal yet: the customer has no client record (it is linked when their KYC is verified). Converting creates the client from the request's details."}
+              </p>
+              <RoleGate need="write">
+                {r.sales.inbox_status !== "Declined" && (
+                  <div className="form-actions">
+                    <button type="button" className="btn" disabled={busy !== null} onClick={() => setConverting(true)}>Convert to deal</button>
+                  </div>
+                )}
+              </RoleGate>
+            </>
+          )}
+        </div>
+      )}
+
+      <Modal
+        open={converting}
+        title="Open a deal for this request?"
+        onClose={() => setConverting(false)}
+        footer={<>
+          <button type="button" className="btn-secondary btn" onClick={() => setConverting(false)} disabled={busy === "convert"}>Cancel</button>
+          <button type="button" className="btn" onClick={() => convertToDeal(r.customer?.client_id ?? null)} disabled={busy === "convert"}>{busy === "convert" ? "Opening…" : "Confirm and open deal"}</button>
+        </>}
+      >
+        <div className="confirm-summary">
+          <div><div className="k">Request</div><div className="v">{r.reference}</div></div>
+          <div><div className="k">Customer</div><div className="v">{r.customer?.name ?? "—"}</div></div>
+          <div><div className="k">Product</div><div className="v">{r.product.name}</div></div>
+        </div>
+        <p className="confirm-lede">Check the request is genuine and complete. This:</p>
+        <ul className="confirm-steps">
+          <li>creates a deal in the Pipeline with these details</li>
+          <li>{r.customer?.client_id ? "links it to the customer's client record" : "links it to a matching client, or creates one from the request"}</li>
+          <li>marks the request Converted (the customer sees "In review")</li>
+        </ul>
+      </Modal>
 
       {submitted && r.quote && (
         <div className="card">
