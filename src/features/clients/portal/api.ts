@@ -110,6 +110,8 @@ export interface PortalRequestDetail {
   next_step: string | null;
   erp_policy: { id: number; policy_no: string | null; status: string; premium_due: number; premium_paid: number; balance_os: number; debit_note_no: string | null } | null;
   follow_ups: FollowUp[];
+  /** The policy's documents on file; the insurer's copies (from_insurer) arrive a few minutes after issue. */
+  documents: { id: number; type: string; title: string | null; from_insurer: boolean; added_at: string | null }[];
   /** Its row in the quote request inbox and its Pipeline deal (handled from this page). */
   sales: {
     inbox_id: number; inbox_status: string; staff_notes: string | null; handled_by: string | null; handled_at: string | null; client_id: number | null;

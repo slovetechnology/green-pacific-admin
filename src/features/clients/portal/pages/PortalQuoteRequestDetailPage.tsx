@@ -1,7 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, ApiError } from "@/shared/api/client";
+import { api, ApiError, apiUrl } from "@/shared/api/client";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { RoleGate } from "@/app/guards/RoleGate";
 import { Modal } from "@/shared/components/exec/Modal";
@@ -272,6 +272,37 @@ export function PortalQuoteRequestDetailPage() {
             <Field label="Receipt" value={r.policy.receipt_id ? <Link to={`/receipts/${r.policy.receipt_id}`}>Open receipt →</Link> : null} />
           </div>
           {r.policy.error && <div className="flash flash-warning" style={{ marginTop: "0.75rem" }}>{r.policy.error}</div>}
+          {r.policy.status === "issued" && (
+            <>
+              <h3>Policy documents</h3>
+              {r.documents.length === 0 ? (
+                <p className="page-lede">None yet. The insurer&apos;s certificate and policy document are copied here (and to the customer&apos;s portal) automatically, usually within minutes of issue.</p>
+              ) : (
+                <table>
+                  <thead><tr><th>Document</th><th>From</th><th>Added</th><th></th></tr></thead>
+                  <tbody>
+                    {r.documents.map((d) => (
+                      <tr key={d.id}>
+                        <td>{d.title || d.type}</td>
+                        <td>{d.from_insurer ? providerName(r.product.source) : "Green Pacific"}</td>
+                        <td>{dateTime(d.added_at)}</td>
+                        <td className="num"><a href={apiUrl(`/api/documents/${d.id}/file`)} target="_blank" rel="noreferrer">Open</a></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              <RoleGate need="write">
+                <div className="form-actions">
+                  <button type="button" className="btn-secondary btn" disabled={busy !== null} onClick={() => act("docs", "/fetch-documents", {}, () => {
+                    setTimeout(() => { queryClient.invalidateQueries({ queryKey: ["portal-quote-request", id] }); }, 6000);
+                  })}>
+                    {busy === "docs" ? "Asking…" : `Get documents from ${providerName(r.product.source)}`}
+                  </button>
+                </div>
+              </RoleGate>
+            </>
+          )}
           <RoleGate need="write">
             {r.policy.status !== "issued" && (
               <>
