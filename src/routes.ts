@@ -163,6 +163,8 @@ export default [
     route("portal/pricing-markup", "routes/clients/portal.pricing-markup.tsx"),
     route("portal/cancellations", "routes/clients/portal.cancellations.tsx"),
     route("portal/cancellations/:id", "routes/clients/portal.cancellations.$id.tsx"),
+    route("portal/enquiries", "routes/clients/portal.enquiries.tsx"),
+    route("portal/enquiries/:id", "routes/clients/portal.enquiries.$id.tsx"),
     route("portal/activity", "routes/clients/portal.activity.tsx"),
     route("client-messages", "routes/clients/client-messages.tsx"),
     route("client-messages/new", "routes/clients/client-messages.new.tsx"),

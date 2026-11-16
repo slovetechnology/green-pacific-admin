@@ -403,13 +403,14 @@ const LEAD_PORTAL_ITEMS: NavGroupItem[] = [
   { to: "/lead-portal/setup", label: "Setup" },
 ];
 // The customer portal (a separate app customers use) seen from the staff side: their quote requests, the payments
-// to confirm, how customers can pay, their cancellation requests and the portal's audit trail. Their KYC is reviewed on KYC Submissions.
+// to confirm, how customers can pay, their cancellation requests, Contact Us enquiries and the portal's audit trail. Their KYC is reviewed on KYC Submissions.
 const PORTAL_ITEMS: NavGroupItem[] = [
   { to: "/portal/quote-requests", label: "Portal Quote Requests" },
   { to: "/portal/payments", label: "Portal Payments" },
   { to: "/portal/payment-methods", label: "Payment Methods" },
   { to: "/portal/pricing-markup", label: "Pricing Markup" },
   { to: "/portal/cancellations", label: "Policy Cancellations" },
+  { to: "/portal/enquiries", label: "Contact Enquiries" },
   { to: "/portal/activity", label: "Portal Activity" },
 ];
 const NAV_AREAS = [
