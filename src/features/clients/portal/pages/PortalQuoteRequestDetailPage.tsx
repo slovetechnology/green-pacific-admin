@@ -187,7 +187,9 @@ export function PortalQuoteRequestDetailPage() {
           <h2>Insurer quote</h2>
           <div className="detail-grid">
             <Field label="Status" value={<StatusBadge status={QUOTE_STATUS_LABELS[r.quote.status] ?? r.quote.status} />} />
-            <Field label="Premium" value={r.quote.premium ? fmtMoney(r.quote.premium) : null} />
+            <Field label="Customer pays" value={r.quote.premium ? fmtMoney(r.quote.premium) : null} />
+            {r.quote.premium ? <Field label="Insurer's premium" value={r.quote.insurer_premium != null ? fmtMoney(r.quote.insurer_premium) : null} /> : null}
+            {r.quote.premium ? <Field label="Our markup" value={r.quote.markup_amount ? `${fmtMoney(r.quote.markup_amount)}${r.quote.markup_rule ? ` (${r.quote.markup_rule})` : ""}` : "None"} /> : null}
             <Field label="Insurer quote no." value={r.quote.insurer_quote_no} />
             <Field label="Quoted by" value={r.quote.source === "insurer" ? `${providerName(r.product.source)} (online)` : r.quote.source === "staff" ? "Green Pacific staff" : null} />
             <Field label="Quoted at" value={dateTime(r.quote.quoted_at)} />
@@ -209,10 +211,10 @@ export function PortalQuoteRequestDetailPage() {
                   }}
                 >
                   <h3>Record the insurer&apos;s quote</h3>
-                  <p className="page-lede">When the quote could not be got online, enter the premium the insurer gave you. The customer can then pay it.</p>
+                  <p className="page-lede">When the quote could not be got online, enter the premium the insurer gave you. Green Pacific&apos;s markup (Customer Portal › Pricing Markup) is added to it, and the customer can then pay.</p>
                   <div className="form-grid">
                     <div className="field">
-                      <label htmlFor="q_premium">Premium (₦)</label>
+                      <label htmlFor="q_premium">Insurer&apos;s premium (₦)</label>
                       <input id="q_premium" inputMode="decimal" required value={quoteForm.premium} onChange={(e) => setQuoteForm({ ...quoteForm, premium: e.target.value })} />
                     </div>
                     <div className="field">

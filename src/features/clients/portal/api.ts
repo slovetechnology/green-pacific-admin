@@ -23,6 +23,10 @@ export interface PortalQuote {
   insurer_quote_ref?: string | null;
   staff_note?: string | null;
   error?: string | null;
+  /** Staff only: what the insurer charges, and Green Pacific's markup on it (premium = insurer_premium + markup_amount). */
+  insurer_premium?: number | null;
+  markup_amount?: number | null;
+  markup_rule?: string | null;
 }
 
 export interface PortalPolicy {
@@ -144,7 +148,7 @@ export interface PortalPayment {
 }
 
 export interface PortalPaymentDetail extends PortalPayment {
-  quote: { premium: number | null; insurer_quote_no: string | null; quote_source: string | null } | null;
+  quote: { premium: number | null; insurer_quote_no: string | null; quote_source: string | null; insurer_premium?: number | null; markup_amount?: number | null; markup_rule?: string | null } | null;
   policy_detail: { status: string | null; policy_no: string | null; error: string | null; transaction_id: number | null; receipt_id: number | null } | null;
   other_attempts: { id: number; reference: string; status: PaymentStatus; created_at: string; reviewed_at: string | null; rejection_reason: string | null }[];
 }

@@ -94,6 +94,12 @@ export function PortalPaymentDetailPage() {
         <div className="detail-grid">
           <Field label="Amount" value={fmtMoney(p.amount)} />
           <Field label="Quoted premium" value={p.quote?.premium ? fmtMoney(p.quote.premium) : null} />
+          {p.quote?.markup_amount ? (
+            <>
+              <Field label="Goes to the insurer" value={fmtMoney(p.quote.insurer_premium ?? 0)} />
+              <Field label="Our markup" value={`${fmtMoney(p.quote.markup_amount)}${p.quote.markup_rule ? ` (${p.quote.markup_rule})` : ""}`} />
+            </>
+          ) : null}
           <Field label="Method" value={p.method.name} />
           <Field label="Paid into" value={p.pay_to ? `${p.pay_to.bank_name ?? ""} ${p.pay_to.account_number ?? ""} (${p.pay_to.account_name ?? ""})` : null} />
           <Field label="Narration to look for" value={p.reference} />
@@ -150,7 +156,7 @@ export function PortalPaymentDetailPage() {
             <p className="confirm-note">Only approve when <strong>{fmtMoney(p.amount)}</strong> with narration <strong>{p.reference}</strong> is on the bank statement. This can't be undone.</p>
             <p className="confirm-lede">Approving will:</p>
             <ul className="confirm-steps">
-              <li>record the receipt in the ERP</li>
+              <li>record the receipt in the ERP{p.quote?.markup_amount ? <>: {fmtMoney(p.quote.insurer_premium ?? 0)} to the policy (owed to the insurer) and {fmtMoney(p.quote.markup_amount)} markup as Green Pacific&apos;s income</> : null}</li>
               <li>ask the insurer to issue the policy</li>
               <li>email the customer their payment receipt</li>
             </ul>
