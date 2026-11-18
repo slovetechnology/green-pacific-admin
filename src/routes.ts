@@ -227,6 +227,7 @@ export default [
       route("users", "routes/platform/users.tsx"),
       route("branches", "routes/platform/branches.tsx"),
       route("document-types", "routes/platform/document-types.tsx"),
+      route("team", "routes/platform/team.tsx"),
       route("audit-log", "routes/platform/audit-log.tsx"),
     ]),
 

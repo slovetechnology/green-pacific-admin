@@ -459,6 +459,7 @@ const ADMIN_ITEMS = [
   { to: "/users", label: "Users" },
   { to: "/branches", label: "Branches" },
   { to: "/document-types", label: "Document Types" },
+  { to: "/team", label: "Our Team" },
   { to: "/audit-log", label: "Audit Log" },
 ];
 
@@ -476,6 +477,7 @@ BREADCRUMB_TRAILS["/client-messages/email-setup"] = ["Client Messages", "Email r
 BREADCRUMB_TRAILS["/users"] = ["Admin", "Users"];
 BREADCRUMB_TRAILS["/branches"] = ["Admin", "Branches"];
 BREADCRUMB_TRAILS["/document-types"] = ["Admin", "Document Types"];
+BREADCRUMB_TRAILS["/team"] = ["Admin", "Our Team"];
 BREADCRUMB_TRAILS["/audit-log"] = ["Admin", "Audit Log"];
 BREADCRUMB_TRAILS["/appraisal"] = ["Performance", "Appraisal"];
 BREADCRUMB_TRAILS["/appraisal/team"] = ["Performance", "My Team"];
