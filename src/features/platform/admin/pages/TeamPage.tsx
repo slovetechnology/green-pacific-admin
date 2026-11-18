@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
 import { confirmAction } from "@/shared/components/ConfirmDialog";
@@ -11,22 +11,38 @@ interface Member {
   bio: string | null;
   photo_url: string | null;
   is_published: number;
+  position: number;
 }
 interface Group {
   id: number;
   name: string;
+  member_count: number;
   members: Member[];
 }
+interface Pagination {
+  page: number;
+  total: number;
+  total_pages: number;
+  has_next_page: boolean;
+  has_prev_page: boolean;
+}
 
+const PAGE_SIZE = 20;
 const EMPTY = { full_name: "", job_title: "", bio: "", photo_url: "" };
 
 // Admin-only (backend platform/team). Groups and people shown on the public "Our Team" page (GET /api/team).
 export function TeamPage() {
   const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
   const { data, isLoading } = useQuery({
-    queryKey: ["team-admin"],
-    queryFn: () => api.get<{ groups: Group[] }>("/api/team-admin"),
+    queryKey: ["team-admin", page],
+    queryFn: () => api.get<{ groups: Group[]; pagination: Pagination }>(`/api/team-admin?page=${page}&limit=${PAGE_SIZE}`),
   });
+  const pagination = data?.pagination;
+  const lastPage = Math.max(1, pagination?.total_pages ?? 1);
+  useEffect(() => {
+    if (page > lastPage) setPage(lastPage);
+  }, [page, lastPage]);
   const [groupName, setGroupName] = useState("");
   const [form, setForm] = useState({ ...EMPTY });
   const [editing, setEditing] = useState<{ groupId: number; memberId: number | null } | null>(null);
@@ -126,7 +142,7 @@ export function TeamPage() {
             <button type="button" className="btn-secondary btn btn-sm" disabled={busy || gi === 0} onClick={() => move("groups", g.id, "up")} aria-label={`Move ${g.name} up`}>↑</button>{" "}
             <button type="button" className="btn-secondary btn btn-sm" disabled={busy || gi === groups.length - 1} onClick={() => move("groups", g.id, "down")} aria-label={`Move ${g.name} down`}>↓</button>{" "}
             <button type="button" className="btn-secondary btn btn-sm" disabled={busy} onClick={() => renameGroup(g)}>Rename</button>{" "}
-            {g.members.length === 0 && (
+            {g.member_count === 0 && (
               <button type="button" className="btn-secondary btn btn-sm" disabled={busy} onClick={() => deleteGroup(g)}>Delete group</button>
             )}{" "}
             <button type="button" className="btn btn-sm" disabled={busy} onClick={() => startEdit(g.id, null)}>Add person</button>
@@ -157,19 +173,21 @@ export function TeamPage() {
             </form>
           )}
 
-          {g.members.length === 0 ? (
+          {g.member_count === 0 ? (
             <p className="muted">Nobody in this group yet.</p>
+          ) : g.members.length === 0 ? (
+            <p className="muted">{g.member_count} in this group, on other pages.</p>
           ) : (
             <table className="table">
               <thead>
                 <tr><th>Order</th><th>Name</th><th>Role</th><th>Status</th><th></th></tr>
               </thead>
               <tbody>
-                {g.members.map((m, mi) => (
+                {g.members.map((m) => (
                   <tr key={m.id}>
                     <td>
-                      <button type="button" className="btn-secondary btn btn-sm" disabled={busy || mi === 0} onClick={() => move("members", m.id, "up")} aria-label={`Move ${m.full_name} up`}>↑</button>{" "}
-                      <button type="button" className="btn-secondary btn btn-sm" disabled={busy || mi === g.members.length - 1} onClick={() => move("members", m.id, "down")} aria-label={`Move ${m.full_name} down`}>↓</button>
+                      <button type="button" className="btn-secondary btn btn-sm"                       disabled={busy || m.position === 1} onClick={() => move("members", m.id, "up")} aria-label={`Move ${m.full_name} up`}>↑</button>{" "}
+                                            <button type="button" className="btn-secondary btn btn-sm" disabled={busy || m.position === g.member_count} onClick={() => move("members", m.id, "down")} aria-label={`Move ${m.full_name} down`}>↓</button>
                     </td>
                     <td>{m.is_published ? m.full_name : <span className="muted">{m.full_name}</span>}</td>
                     <td>{m.job_title || "—"}</td>
@@ -186,6 +204,14 @@ export function TeamPage() {
           )}
         </div>
       ))}
+
+      {pagination && pagination.total_pages > 1 && (
+        <p>
+          <button type="button" className="btn-secondary btn btn-sm" disabled={!pagination.has_prev_page} onClick={() => setPage(page - 1)}>Previous</button>{" "}
+          Page {Math.min(page, lastPage)} of {lastPage} ({pagination.total} people){" "}
+          <button type="button" className="btn-secondary btn btn-sm" disabled={!pagination.has_next_page} onClick={() => setPage(page + 1)}>Next</button>
+        </p>
+      )}
     </div>
   );
 }
