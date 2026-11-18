@@ -410,9 +410,10 @@ const PORTAL_ITEMS: NavGroupItem[] = [
   { to: "/portal/payment-methods", label: "Payment Methods" },
   { to: "/portal/pricing-markup", label: "Pricing Markup" },
   { to: "/portal/cancellations", label: "Policy Cancellations" },
-  { to: "/portal/enquiries", label: "Contact Enquiries" },
+  { to: "/portal/enquiries", label: "Contact Enquiries" }, // admins only: hidden from others below
   { to: "/portal/activity", label: "Portal Activity" },
 ];
+const ADMIN_ONLY_PORTAL_PATHS = new Set(["/portal/enquiries"]);
 const NAV_AREAS = [
   { key: "clients", label: "Clients & CRM", items: pick("/clients", "/crm/coverage-gaps", "/quote-requests", "/client-messages") },
   { key: "sales", label: "Business & Sales", items: pick("/deals", "/deals/dashboard", "/kyc-submissions", "/campaigns", "/crm/bd-kpis") },
@@ -587,7 +588,7 @@ function buildCommandItems(isAdmin: boolean, isAgent: boolean, isHr: boolean, pe
   if (isAgent) return AGENT_NAV_ITEMS.map((i) => ({ to: i.to, label: i.label, group: "My book" }));
   const items: CommandItem[] = NAV_ITEMS.map((i) => ({ to: i.to, label: i.label, group: "General" }));
   for (const area of NAV_AREAS) {
-    for (const item of area.items) items.push({ to: item.to, label: item.label, group: area.label });
+    for (const item of area.items) if (isAdmin || !ADMIN_ONLY_PORTAL_PATHS.has(item.to)) items.push({ to: item.to, label: item.label, group: area.label });
   }
   for (const item of performance) items.push({ to: item.to, label: item.label, group: "Performance" });
   for (const item of hrOps) items.push({ to: item.to, label: item.label, group: "HR & Admin" });
@@ -676,7 +677,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   const areas = useMemo<NavArea[]>(() => {
-    const list: NavArea[] = [OVERVIEW_AREA, ...NAV_AREAS];
+    const navAreas = user?.isAdmin ? NAV_AREAS : NAV_AREAS.map((a) => (a.key === "customer-portal" ? { ...a, items: a.items.filter((i) => !ADMIN_ONLY_PORTAL_PATHS.has(i.to)) } : a));
+    const list: NavArea[] = [OVERVIEW_AREA, ...navAreas];
     if (reinsurance.length) list.push({ key: "reinsurance", label: "Reinsurance", items: reinsurance });
     if (policyBank.hasAny) list.push({ key: "policy-bank", label: "Policy Bank", items: PB_TABS });
     if (ledger.hasAny) list.push({ key: "ledger", label: "General Ledger", items: GL_TABS });
