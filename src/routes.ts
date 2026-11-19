@@ -228,6 +228,7 @@ export default [
       route("branches", "routes/platform/branches.tsx"),
       route("document-types", "routes/platform/document-types.tsx"),
       route("team", "routes/platform/team.tsx"),
+      route("testimonials", "routes/platform/testimonials.tsx"),
       route("audit-log", "routes/platform/audit-log.tsx"),
     ]),
 
