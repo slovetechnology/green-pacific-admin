@@ -91,6 +91,8 @@ function DialogView({ request }: { request: Request }) {
   const inputRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const done = useRef(false);
+  // Where the pointer went down: a drag that starts in the input and ends on the backdrop is not a backdrop click.
+  const downOnBackdrop = useRef(false);
   const { options } = request;
   const [value, setValue] = useState(request.kind === "prompt" ? (request.options.defaultValue ?? "") : "");
 
@@ -144,8 +146,13 @@ function DialogView({ request }: { request: Request }) {
         e.preventDefault();
         finish(false);
       }}
+      // If the browser closes the dialog itself (e.g. a repeated Esc), still settle it so the caller and queue move on.
+      onClose={() => finish(false)}
+      onMouseDown={(e) => {
+        downOnBackdrop.current = e.target === ref.current;
+      }}
       onClick={(e) => {
-        if (e.target === ref.current) finish(false); // a click on the backdrop
+        if (e.target === ref.current && downOnBackdrop.current) finish(false); // a click on the backdrop
       }}
     >
       <form className="pl-modal-body" onSubmit={submit}>

@@ -93,7 +93,7 @@ export function BudgetsPage() {
       <div className="card ledger-toolbar">
         <div className="toolbar">
           <label className="ledger-field">Year
-            <select value={year} onChange={async (e) => { if (!dirty || (await confirmDialog("Discard unsaved changes?"))) setParams({ year: e.target.value }); }}>
+            <select value={year} onChange={async (e) => { const next = e.target.value; if (!dirty || (await confirmDialog("Discard unsaved changes?"))) setParams({ year: next }); }}>
               {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() + 1 - i).map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </label>
