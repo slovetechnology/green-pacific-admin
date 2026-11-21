@@ -1,1 +1,7 @@
+# Proxy the API through this site so the session cookie is first-party (browsers block
+# third-party cookies, which breaks sign-in when the API is on another domain).
+# Build with VITE_API_URL empty so the app calls /api on its own origin.
+/api/*  https://mygreenpacific-api.onrender.com/api/:splat  200!
+/health/*  https://mygreenpacific-api.onrender.com/health/:splat  200!
+
 /* /index.html 200

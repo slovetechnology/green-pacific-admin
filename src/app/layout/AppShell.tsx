@@ -409,6 +409,7 @@ const PORTAL_ITEMS: NavGroupItem[] = [
   { to: "/portal/payments", label: "Portal Payments" },
   { to: "/portal/payment-methods", label: "Payment Methods" },
   { to: "/portal/pricing-markup", label: "Pricing Markup" },
+  { to: "/portal/insurer-products", label: "Insurer Products" },
   { to: "/portal/cancellations", label: "Policy Cancellations" },
   { to: "/portal/enquiries", label: "Contact Enquiries" }, // admins only: hidden from others below
   { to: "/portal/activity", label: "Portal Activity" },
