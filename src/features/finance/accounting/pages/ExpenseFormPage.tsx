@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
-import { confirmAction } from "@/shared/components/ConfirmDialog";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 interface FormOptions {
   categories: string[];
@@ -92,7 +92,7 @@ export function ExpenseFormPage() {
   }
 
   async function handleDelete() {
-    if (!confirmAction("Delete this expense? This cannot be undone.")) return;
+    if (!(await confirmDialog("Delete this expense? This cannot be undone."))) return;
     await api.delete(`/api/expenses/${expenseId}`);
     await queryClient.invalidateQueries({ queryKey: ["expenses"] });
     await queryClient.invalidateQueries({ queryKey: ["financials"] });

@@ -5,6 +5,7 @@ import { useAction, useHrMeta } from "../hooks/useHrApi";
 import type { PersonProfile } from "../lib/types";
 import { Notice } from "./Badges";
 import { SelectField, TextField } from "./Fields";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 // Line of Authority matrix: pick a person to see which lines they may write and grant or withdraw one.
 export function LoaTab() {
@@ -55,7 +56,7 @@ export function LoaTab() {
                       <td>{l.granted_on ?? "—"}</td>
                       <td>{l.expires_on ?? "—"}</td>
                       <td>
-                        <button type="button" className="btn-secondary btn btn-sm" disabled={busy} onClick={() => window.confirm(`Remove ${l.loa_name}?`) && run(() => api.delete(`/api/hr/loa/${l.id}`), "Authority removed.")}>
+                        <button type="button" className="btn-secondary btn btn-sm" disabled={busy} onClick={async () => (await confirmDialog(`Remove ${l.loa_name}?`)) && run(() => api.delete(`/api/hr/loa/${l.id}`), "Authority removed.")}>
                           Remove
                         </button>
                       </td>

@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
 import { DataGrid, type DataGridColumn } from "@/shared/components/DataGrid";
+import { alertDialog, promptDialog } from "@/shared/components/Dialogs";
 
 interface BranchRow {
   id: number;
@@ -50,12 +51,12 @@ export function BranchesPage() {
       await api.put(`/api/branches/${branch.id}`, { name: branch.name, address: branch.address, ...changes });
       await refetch();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not update branch.");
+      void alertDialog(err instanceof Error ? err.message : "Could not update branch.");
     }
   }
 
-  function handleRename(branch: BranchRow) {
-    const next = window.prompt("Branch name", branch.name);
+  async function handleRename(branch: BranchRow) {
+    const next = await promptDialog({ title: "Rename branch", message: "Branch name", defaultValue: branch.name, required: true, confirmLabel: "Save" });
     if (next && next.trim() && next.trim() !== branch.name) void handleUpdate(branch, { name: next.trim() });
   }
 

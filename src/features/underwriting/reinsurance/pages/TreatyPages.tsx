@@ -10,6 +10,7 @@ import { bpsText, errorText, minorDecimal, minorText, useReinsuranceStatus, type
 import { AttachmentsPanel } from "../components/AttachmentsPanel";
 import { TreatyTermsForm } from "../components/TreatyForm";
 import { emptyTerms, termsFrom, termsPayload, type TermsState } from "../lib/treatyTerms";
+import { confirmDialog, promptDialog } from "@/shared/components/Dialogs";
 import "@/shared/styles/executive.css";
 import "@/shared/styles/reinsurance.css";
 
@@ -168,7 +169,7 @@ export function TreatyDetailPage() {
           <Link className="btn-secondary btn" to={`/reinsurance/treaties/${t.id}/calculators`}>Calculators</Link>
           <a className="btn-secondary btn" href={apiUrl(`${base}/bordereaux-export?period_start=${t.period_start}&period_end=${t.period_end}`)}>Export premium bordereau</a>
           {can("ri.treaty.edit") && can("ri.placement.edit") && !v.next && ["Bound", "Active", "Run-off"].includes(t.status) && (
-            <button type="button" className="btn-secondary btn" onClick={() => { if (window.confirm("Renew this treaty for the next period? A draft is created with last year's terms and reinsurers invited.")) run("Renewal opened.", async () => { const r = await api.post<{ treatyId: number; placementId: number }>(`${base}/renew`, {}); navigate(`/reinsurance/placements/${r.placementId}`); }); }}>Renew</button>
+            <button type="button" className="btn-secondary btn" onClick={async () => { if (await confirmDialog("Renew this treaty for the next period? A draft is created with last year's terms and reinsurers invited.")) run("Renewal opened.", async () => { const r = await api.post<{ treatyId: number; placementId: number }>(`${base}/renew`, {}); navigate(`/reinsurance/placements/${r.placementId}`); }); }}>Renew</button>
           )}
         </div>
       </div>
@@ -281,7 +282,7 @@ export function TreatyDetailPage() {
                       <td>
                         {e.status === "Pending" && e.requested_by !== user?.username && can("ri.placement.approve") && <>
                           <button type="button" className="btn btn-sm" onClick={() => run("Endorsement approved.", () => api.post(`/api/reinsurance/endorsements/${e.id}/decision`, { approve: true }))}>Approve</button>{" "}
-                          <button type="button" className="btn-secondary btn btn-sm" onClick={() => run("Endorsement rejected.", () => api.post(`/api/reinsurance/endorsements/${e.id}/decision`, { approve: false, note: window.prompt("Reason (optional)") || undefined }))}>Reject</button></>}
+                          <button type="button" className="btn-secondary btn btn-sm" onClick={async () => { const note = await promptDialog({ title: "Reject", message: "Reason (optional)", multiline: true }); if (note === null) return; void run("Endorsement rejected.", () => api.post(`/api/reinsurance/endorsements/${e.id}/decision`, { approve: false, note: note || undefined })); }}>Reject</button></>}
                         {e.status === "Pending" && e.requested_by === user?.username && <button type="button" className="btn-secondary btn btn-sm" onClick={() => run("Withdrawn.", () => api.post(`/api/reinsurance/endorsements/${e.id}/withdraw`))}>Withdraw</button>}
                         {v.placement && <a className="btn-secondary btn btn-sm" href={apiUrl(`${base}/endorsements/${e.id}/document?format=pdf`)}>PDF</a>}
                       </td></tr>))}</tbody></table></div>

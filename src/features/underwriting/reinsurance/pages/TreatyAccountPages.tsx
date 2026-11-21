@@ -5,6 +5,7 @@ import { api, apiUrl } from "@/shared/api/client";
 import { DataGrid, type DataGridColumn } from "@/shared/components/DataGrid";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { errorText, minorText, useReinsuranceStatus, type TreatyRow } from "../lib/reinsurance";
+import { promptDialog } from "@/shared/components/Dialogs";
 import "@/shared/styles/reinsurance.css";
 
 interface AccountRow { id: number; account_ref: string; treaty_id: number; treaty_ref: string; treaty_name: string; period_start: string; period_end: string; currency: string; status: string; issue_no: number; item_count: number }
@@ -148,7 +149,7 @@ export function TreatyAccountDetailPage() {
                   <button className="btn btn-sm" type="submit" disabled={!resp.party_id || (resp.status === "Disputed" && !resp.note)}>Record</button>
                 </div>
               </form>
-              <button type="button" className="btn-secondary btn btn-sm" onClick={() => { const reason = window.prompt("Why is the account being reopened?"); if (reason) run("Account reopened to correct it.", () => api.post(`${base}/reopen`, { reason })); }}>Reopen to correct</button>
+              <button type="button" className="btn-secondary btn btn-sm" onClick={async () => { const reason = await promptDialog({ message: "Why is the account being reopened?", required: true, multiline: true }); if (reason) run("Account reopened to correct it.", () => api.post(`${base}/reopen`, { reason })); }}>Reopen to correct</button>
             </>
           )}
           <h3>Issues</h3><ul>{v.issues.map((i) => <li key={i.issue_no} className="ri-note">Issue {i.issue_no} by {i.issued_by} on {i.issued_at}, fingerprint {i.sha256.slice(0, 12)}…</li>)}</ul>

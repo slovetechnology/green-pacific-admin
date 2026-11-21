@@ -6,6 +6,7 @@ import { SelectField, TextField, money, pct, today } from "../components/Fields"
 import { useHrAccess } from "../context/HrAccessContext";
 import { useAction, useHrMeta } from "../hooks/useHrApi";
 import type { CompAssignment, CompProfile } from "../lib/types";
+import { confirmDialog } from "@/shared/components/Dialogs";
 import "../hr-admin.css";
 
 interface ProfilesResponse {
@@ -105,7 +106,7 @@ export function PayPage() {
                           <li key={r.id}>
                             {r.insurer_name}: {r.bonus_rate ? pct(r.bonus_rate) : money(r.bonus_amount)} {r.period.toLowerCase()} above {r.basis === "Policy count" ? `${r.threshold} policies` : `${money(r.threshold)} ${r.basis}`}
                             {access.managePay && (
-                              <button type="button" className="hr-link" onClick={() => window.confirm("Remove this bonus rule?") && run(() => api.delete(`/api/hr-admin/comp/bonus-rules/${r.id}`), "Rule removed.")}> remove</button>
+                              <button type="button" className="hr-link" onClick={async () => (await confirmDialog("Remove this bonus rule?")) && run(() => api.delete(`/api/hr-admin/comp/bonus-rules/${r.id}`), "Rule removed.")}> remove</button>
                             )}
                           </li>
                         ))}

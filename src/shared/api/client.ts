@@ -1,3 +1,4 @@
+import { alertDialog } from "../components/Dialogs";
 // Base URL of the API. Empty/undefined means same origin (the Vite dev proxy,
 // or the backend serving the built app itself). Set VITE_API_URL at build time
 // (e.g. https://api.example.com, no trailing slash) when the static site is
@@ -291,7 +292,7 @@ export function installApiLinkDownloads(): void {
     openApiFile(href, { newTab })
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : String(err);
-        window.alert(err instanceof ApiError && err.status === 401 ? "Your session has ended. Please sign in again, then retry the download." : `The file could not be downloaded: ${message}`);
+        void alertDialog(err instanceof ApiError && err.status === 401 ? "Your session has ended. Please sign in again, then retry the download." : `The file could not be downloaded: ${message}`);
       })
       .finally(() => link.removeAttribute("aria-busy"));
   });

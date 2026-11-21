@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
 import { fmtMinor } from "../api/ledger";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 interface BudgetAccount { id: number; code: string; name: string; type: "Income" | "Expense"; section: string; retired: boolean; months: number[]; prior: number[] }
 interface Grid {
@@ -92,7 +93,7 @@ export function BudgetsPage() {
       <div className="card ledger-toolbar">
         <div className="toolbar">
           <label className="ledger-field">Year
-            <select value={year} onChange={(e) => { if (!dirty || window.confirm("Discard unsaved changes?")) setParams({ year: e.target.value }); }}>
+            <select value={year} onChange={async (e) => { if (!dirty || (await confirmDialog("Discard unsaved changes?"))) setParams({ year: e.target.value }); }}>
               {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() + 1 - i).map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </label>

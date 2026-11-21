@@ -5,6 +5,7 @@ import { api, ApiError, apiUrl } from "@/shared/api/client";
 import { DataGrid, type DataGridColumn } from "@/shared/components/DataGrid";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { errorText, minorText, useReinsuranceStatus, type TreatyRow } from "../lib/reinsurance";
+import { confirmDialog, promptDialog } from "@/shared/components/Dialogs";
 import "@/shared/styles/reinsurance.css";
 
 interface Bdx {
@@ -150,8 +151,8 @@ export function BordereauDetailPage() {
         </div>
         {b.status === "Imported" && can("ri.accounts.post") && (
           <div className="ri-inline">
-            <button type="button" className="btn btn-sm" disabled={!b.valid_count} onClick={() => { if (b.error_count && !window.confirm(`${b.error_count} row(s) have errors and will be left out. Accept the rest?`)) return; run("Bordereau accepted.", () => api.post(`${base}/decision`, { decision: "accept", exclude_errors: true })); }}>Accept</button>
-            <button type="button" className="btn-secondary btn btn-sm" onClick={() => { const note = window.prompt("Why is it rejected?"); if (note) run("Bordereau rejected.", () => api.post(`${base}/decision`, { decision: "reject", note })); }}>Reject</button>
+            <button type="button" className="btn btn-sm" disabled={!b.valid_count} onClick={async () => { if (b.error_count && !(await confirmDialog(`${b.error_count} row(s) have errors and will be left out. Accept the rest?`))) return; run("Bordereau accepted.", () => api.post(`${base}/decision`, { decision: "accept", exclude_errors: true })); }}>Accept</button>
+            <button type="button" className="btn-secondary btn btn-sm" onClick={async () => { const note = await promptDialog({ message: "Why is it rejected?", required: true, multiline: true }); if (note) run("Bordereau rejected.", () => api.post(`${base}/decision`, { decision: "reject", note })); }}>Reject</button>
           </div>
         )}
         {b.status === "Accepted" && can("ri.accounts.post") && (

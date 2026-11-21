@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router";
 import { api, type Keyword, type Lead, type Settings, type Source, type WatchedCompany } from "../api";
 import { useIsAdmin } from "../access";
 import { Empty, ErrorNote, Loading, Modal, Pill, ScoreBadge, timeAgo } from "../components/ui";
+import { alertDialog, confirmDialog } from "@/shared/components/Dialogs";
 
 const TABS = [
   { id: "digest", label: "Digest" },
@@ -48,11 +49,11 @@ function LoadDefaults() {
     mutationFn: () => api.post<{ sources: number; keywords: number; watchlist: number }>("/defaults", {}),
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ["lead-portal"] });
-      alert(r.sources + r.keywords + r.watchlist
+      void alertDialog(r.sources + r.keywords + r.watchlist
         ? `Added ${r.watchlist} watchlist companies, ${r.keywords} keywords and ${r.sources} sources.`
         : "Nothing was missing: the default list is already loaded.");
     },
-    onError: (e) => alert(e instanceof Error ? e.message : "Could not load the default list"),
+    onError: (e) => alertDialog(e instanceof Error ? e.message : "Could not load the default list"),
   });
   return (
     <button className="btn btn-secondary" disabled={load.isPending} title="Adds the 14 starter companies, the 7 keywords and the 6 tender sources if any are missing"
@@ -341,7 +342,7 @@ function Keywords() {
                 {isAdmin ? (
                   <>
                     <button className="btn btn-secondary btn-sm" onClick={() => setEditing({ ...k, spellings: k.spellings.join(", ") })}>Edit</button>{" "}
-                    <button className="btn btn-secondary btn-sm lp-danger" onClick={() => confirm(`Delete "${k.label}"?`) && remove.mutate(k.id)}>Delete</button>
+                    <button className="btn btn-secondary btn-sm lp-danger" onClick={async () => (await confirmDialog(`Delete "${k.label}"?`)) && remove.mutate(k.id)}>Delete</button>
                   </>
                 ) : null}
               </td>
@@ -413,7 +414,7 @@ function Watchlist() {
                   {isAdmin ? (
                     <>
                       <button className="btn btn-secondary btn-sm" onClick={() => setEditing({ ...c })}>Edit</button>{" "}
-                      <button className="btn btn-secondary btn-sm lp-danger" onClick={() => confirm(`Remove ${c.name}?`) && remove.mutate(c.id)}>Remove</button>
+                      <button className="btn btn-secondary btn-sm lp-danger" onClick={async () => (await confirmDialog(`Remove ${c.name}?`)) && remove.mutate(c.id)}>Remove</button>
                     </>
                   ) : null}
                 </td>

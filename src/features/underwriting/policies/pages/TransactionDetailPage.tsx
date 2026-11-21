@@ -5,7 +5,6 @@ import { api, apiUrl } from "@/shared/api/client";
 import { fmtMoney, fmtMoneyShort } from "@/shared/lib/format";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { RoleGate } from "@/app/guards/RoleGate";
-import { confirmAction } from "@/shared/components/ConfirmDialog";
 import { OverdueBadge } from "@/shared/components/OverdueBadge";
 import { SubBrokerPanel } from "@/features/partners/sub-brokers/components/SubBrokerPanel";
 import { useAuth } from "@/features/platform/auth/AuthContext";
@@ -16,6 +15,7 @@ import { Tabs, type TabDef } from "@/shared/components/exec/Tabs";
 import "@/shared/styles/executive.css";
 import { ScheduleView } from "../components/schedules/ScheduleView";
 import { REMINDER_LABELS, type PremiumInvoice } from "../lib/premiumInvoices";
+import { alertDialog, confirmDialog } from "@/shared/components/Dialogs";
 
 const SPLIT_TYPES = ["WritingAgent", "Referral", "Agency", "Other"] as const;
 
@@ -210,13 +210,13 @@ export function TransactionDetailPage() {
   });
 
   async function handleDelete() {
-    if (!confirmAction("Delete this transaction? This cannot be undone.")) return;
+    if (!(await confirmDialog("Delete this transaction? This cannot be undone."))) return;
     try {
       await api.delete(`/api/transactions/${txId}`);
       await queryClient.invalidateQueries({ queryKey: ["transactions"] });
       navigate("/transactions");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not delete transaction.");
+      void alertDialog(err instanceof Error ? err.message : "Could not delete transaction.");
     }
   }
 

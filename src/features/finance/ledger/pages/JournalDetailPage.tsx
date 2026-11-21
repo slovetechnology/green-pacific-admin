@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { KIND_LABEL, SOURCE_LABEL, fmtMinor, fmtMinorOrBlank, type JournalDetail } from "../api/ledger";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 /** One journal: its lines, where it came from, and the approve / reject / reverse actions the caller may take. */
 export function JournalDetailPage() {
@@ -56,7 +57,7 @@ export function JournalDetailPage() {
           {data.can.edit && <Link to={`/ledger/journals/${j.id}/edit`} className="btn btn-secondary">Edit draft</Link>}
           {data.can.edit && (
             <button type="button" className="btn btn-danger" disabled={busy}
-              onClick={() => { if (window.confirm("Discard this draft journal?")) void run(() => api.delete(`/api/gl/journals/${j.id}`), "Discarded.").then(() => navigate("/ledger/journals")); }}>
+              onClick={async () => { if (await confirmDialog("Discard this draft journal?")) void run(() => api.delete(`/api/gl/journals/${j.id}`), "Discarded.").then(() => navigate("/ledger/journals")); }}>
               Discard
             </button>
           )}

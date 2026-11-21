@@ -12,6 +12,7 @@ import { PolicyChanges } from "../components/PolicyChanges";
 import { PolicyPreview } from "../components/PolicyPreview";
 import { PolicyReview } from "../components/PolicyReview";
 import { PolicyValidationPanel } from "../components/PolicyValidationPanel";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value);
@@ -116,8 +117,8 @@ function Builder({ initial }: { initial: Initial }) {
     });
     setDirty(true);
   };
-  const changeVersion = (id: number) => {
-    if (dirty && !window.confirm("Changing the product version starts the selection again. Continue?")) return;
+  const changeVersion = async (id: number) => {
+    if (dirty && !(await confirmDialog("Changing the product version starts the selection again. Continue?"))) return;
     setChosenPv(id);
     setPicked(null);
     setLimitsOn(null);

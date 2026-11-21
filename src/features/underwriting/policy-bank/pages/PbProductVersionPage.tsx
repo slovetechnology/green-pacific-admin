@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import { TYPE_LABEL, pb, qs, usePbAccess, type Paged, type PbComponent, type ProductVersionDetail, type PvItem, type PvLimit } from "../api/policyBank";
 import { Field, Flash, PbLayout, PbStatus, ReasonButton, fmtAmount, useAct } from "../components/PbCommon";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 type Tab = "components" | "limits" | "rules";
 const KIND_LABEL = { limit: "Limits", sub_limit: "Sub-limits", excess: "Excesses / deductibles" } as const;
@@ -188,7 +189,7 @@ export function PbProductVersionPage() {
             <h3 className="card-title">Workflow</h3>
             <div className="pb-row-actions">
               {editable && can("policy_bank.edit") && <button type="button" className="btn-secondary btn" disabled={submitAll.isPending} onClick={() => submitAll.mutate(undefined)}>Submit all draft wordings</button>}
-              {can("policy_wording.approve") && d.summary.notApproved > 0 && <button type="button" className="btn-secondary btn" disabled={approveAll.isPending} onClick={() => { if (window.confirm("Approve every submitted wording in this version? Wordings you wrote yourself are skipped.")) approveAll.mutate(undefined); }}>Approve all submitted wordings</button>}
+              {can("policy_wording.approve") && d.summary.notApproved > 0 && <button type="button" className="btn-secondary btn" disabled={approveAll.isPending} onClick={async () => { if (await confirmDialog("Approve every submitted wording in this version? Wordings you wrote yourself are skipped.")) approveAll.mutate(undefined); }}>Approve all submitted wordings</button>}
               {editable && can("policy_bank.edit") && <button type="button" className="btn" disabled={step.isPending} onClick={() => step.mutate({ action: "submit" })}>Submit product version</button>}
               {pv.approval_status === "Submitted" && can("policy_bank.approve") && <button type="button" className="btn-secondary btn" onClick={() => step.mutate({ action: "review" })}>Start review</button>}
               {(pv.approval_status === "Submitted" || pv.approval_status === "UnderReview") && can("policy_bank.approve") && (

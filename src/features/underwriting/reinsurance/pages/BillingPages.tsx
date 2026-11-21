@@ -5,6 +5,7 @@ import { api } from "@/shared/api/client";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { DataGrid, type DataGridColumn } from "@/shared/components/DataGrid";
 import { bpsText, errorText, minorDecimal, minorText, useReinsuranceStatus, type PlacementView } from "../lib/reinsurance";
+import { promptDialog } from "@/shared/components/Dialogs";
 import "@/shared/styles/reinsurance.css";
 
 interface BillingRow { id: number; billing_ref: string; kind: "Premium" | "Claim"; placement_id: number; placement_ref: string; cedant_name: string; currency: string; description: string; billed_date: string; due_date: string; due_minor: number; received_minor: number; status: string }
@@ -94,7 +95,7 @@ export function BillingDetailPage() {
         <p className="eyebrow"><Link to="/reinsurance/billings">Billings</Link> · {premium ? "Premium" : "Claim"} · {v.cedant.name}</p>
         <h1>{b.billing_ref} <StatusBadge status={b.status} /></h1>
         <p className="ri-note">{b.description} · <Link to={`/reinsurance/placements/${b.placement_id}`}>{v.placement.placement_ref}</Link>{v.treaty && <> · <Link to={`/reinsurance/treaties/${v.treaty.id}`}>{v.treaty.treaty_ref}</Link></>} · billed {b.billed_date}, due {b.due_date}{v.journal && ` · journal ${v.journal.journal_no}`}</p></div>
-        <div className="page-header-actions">{can("ri.accounts.post") && !cancelled && <button type="button" className="btn-secondary btn" onClick={() => { const reason = window.prompt("Why is this billing being cancelled?"); if (reason) run("Billing cancelled.", () => api.post(`${base}/cancel`, { reason })); }}>Cancel billing</button>}</div></div>
+        <div className="page-header-actions">{can("ri.accounts.post") && !cancelled && <button type="button" className="btn-secondary btn" onClick={async () => { const reason = await promptDialog({ message: "Why is this billing being cancelled?", required: true, multiline: true }); if (reason) run("Billing cancelled.", () => api.post(`${base}/cancel`, { reason })); }}>Cancel billing</button>}</div></div>
       {flash && <div className={`flash flash-${flash.kind}`}>{flash.text}</div>}
       {cancelled && <div className="flash flash-info">Cancelled: {b.cancel_reason}. Its ledger entry was reversed.</div>}
 
@@ -125,7 +126,7 @@ export function BillingDetailPage() {
         <div className="table-wrap"><table className="data-table"><thead><tr><th>Ref</th><th>From</th><th>Date</th><th className="ri-num">Amount</th><th>Status</th><th /></tr></thead>
           <tbody>{!v.receipts.length && <tr><td colSpan={6}>Nothing received yet.</td></tr>}
             {v.receipts.map((r) => <tr key={r.id}><td>{r.receipt_ref}<div className="ri-note">{r.bank_ref || ""}</div></td><td>{r.payer_name}</td><td>{r.received_date}</td><td className="ri-num">{minorText(r.amount_minor, cur)}{r.brokerage_recognised_minor > 0 && <div className="ri-note">earned {minorText(r.brokerage_recognised_minor, cur)} brokerage</div>}</td><td><StatusBadge status={r.status} /></td>
-              <td>{can("ri.accounts.post") && r.status === "Posted" && <button type="button" className="btn-secondary btn btn-sm" onClick={() => { const reason = window.prompt("Why is this receipt being reversed?"); if (reason) run("Receipt reversed.", () => api.post(`/api/reinsurance/receipts/${r.id}/reverse`, { reason })); }}>Reverse</button>}</td></tr>)}</tbody></table></div>
+              <td>{can("ri.accounts.post") && r.status === "Posted" && <button type="button" className="btn-secondary btn btn-sm" onClick={async () => { const reason = await promptDialog({ message: "Why is this receipt being reversed?", required: true, multiline: true }); if (reason) run("Receipt reversed.", () => api.post(`/api/reinsurance/receipts/${r.id}/reverse`, { reason })); }}>Reverse</button>}</td></tr>)}</tbody></table></div>
         {can("ri.accounts.post") && !cancelled && b.status !== "Paid" && (
           <form onSubmit={(e) => { e.preventDefault(); run("Receipt recorded.", () => api.post(`${base}/receipts`, { ...rcpt, share_id: rcpt.share_id ? Number(rcpt.share_id) : undefined, received_date: rcpt.received_date || undefined }).then(() => setRcpt({ ...rcpt, amount: "", bank_ref: "" }))); }}>
             <div className="ri-inline">

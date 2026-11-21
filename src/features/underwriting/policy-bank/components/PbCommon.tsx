@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { NavLink } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { PB_TABS, usePbAccess, type ApprovalStatus } from "../api/policyBank";
+import { promptDialog } from "@/shared/components/Dialogs";
 import "../policybank.css";
 
 const STATUS_CLASS: Record<string, string> = {
@@ -72,8 +73,8 @@ export function ReasonButton({ label, prompt, onConfirm, disabled, className = "
       type="button"
       className={className}
       disabled={disabled}
-      onClick={() => {
-        const reason = window.prompt(prompt);
+      onClick={async () => {
+        const reason = await promptDialog({ message: prompt, required: true, multiline: true });
         if (reason && reason.trim()) onConfirm(reason.trim());
       }}
     >

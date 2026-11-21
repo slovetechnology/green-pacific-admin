@@ -9,6 +9,7 @@ import { PolicyChanges } from "./PolicyChanges";
 import { PolicyFollowOn } from "./PolicyFollowOn";
 import { PolicyPreview } from "./PolicyPreview";
 import { PolicyValidationPanel } from "./PolicyValidationPanel";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 const ACTION_LABEL: Record<string, string> = { submit: "Submitted for approval", approve: "Approved", reject: "Sent back / withdrawn", issue: "Issued" };
 
@@ -87,7 +88,7 @@ export function PolicyReview({ draft }: { draft: Draft }) {
               <div className="pb-row-actions" style={{ alignItems: "center" }}>
                 <label><input type="checkbox" checked={formats.pdf} onChange={(e) => setFormats({ ...formats, pdf: e.target.checked })} /> PDF</label>
                 <label><input type="checkbox" checked={formats.docx} onChange={(e) => setFormats({ ...formats, docx: e.target.checked })} /> Word</label>
-                <button type="button" className="btn" disabled={issue.isPending || (validation ? !validation.ready : true)} onClick={() => { if (window.confirm("Issue this policy? The record is frozen and cannot be edited afterwards.")) issue.mutate(undefined); }}>{issue.isPending ? "Issuing…" : "Issue policy"}</button>
+                <button type="button" className="btn" disabled={issue.isPending || (validation ? !validation.ready : true)} onClick={async () => { if (await confirmDialog("Issue this policy? The record is frozen and cannot be edited afterwards.")) issue.mutate(undefined); }}>{issue.isPending ? "Issuing…" : "Issue policy"}</button>
                 {can("policy_wording.approve") && <ReasonButton label="Send back…" prompt="Why is the approval being withdrawn?" onConfirm={(r) => back.mutate(r)} disabled={back.isPending} />}
               </div>
             ) : <span className="pb-muted">Approved. Waiting for someone with the issue permission.</span>}

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Digest } from "../api";
 import { useIsAdmin } from "../access";
 import { Empty, ErrorNote, fmtDateTime, Loading, Modal, Pill } from "../components/ui";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 interface Preview {
   subject: string;
@@ -51,7 +52,7 @@ export function DigestsPage() {
                 className="btn"
                 disabled={send.isPending || !settings.data?.emailConfigured}
                 title={settings.data?.emailConfigured ? "" : "Email is not set up on the server (RESEND_API_KEY)"}
-                onClick={() => confirm("Send the digest now? The companies in it will never be sent again.") && send.mutate()}
+                onClick={async () => (await confirmDialog("Send the digest now? The companies in it will never be sent again.")) && send.mutate()}
               >
                 {send.isPending ? "Sending…" : "Send now"}
               </button>

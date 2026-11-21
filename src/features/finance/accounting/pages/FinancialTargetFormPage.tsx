@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
-import { confirmAction } from "@/shared/components/ConfirmDialog";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 interface Row {
   id: number;
@@ -61,7 +61,7 @@ export function FinancialTargetFormPage() {
   }
 
   async function handleDelete() {
-    if (!confirmAction("Delete this month's targets?")) return;
+    if (!(await confirmDialog("Delete this month's targets?"))) return;
     await api.delete(`/api/financials/${year}/${month}`);
     await queryClient.invalidateQueries({ queryKey: ["financials"] });
     navigate(`/financials?year=${year}`);

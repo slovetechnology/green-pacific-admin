@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, openApiFile } from "@/shared/api/client";
 import { fmtMoneyShort } from "@/shared/lib/format";
 import { fmtMinor } from "../api/ledger";
+import { confirmDialog, promptDialog } from "@/shared/components/Dialogs";
 
 interface Amounts { actual: number | null; prior: number | null; budget?: number | null; variance?: number | null; variancePct?: number | null }
 interface AccountRow { code: string; name: string; month: number; ytd: number; priorYtd: number | null; budgetMonth?: number; varianceMonth?: number; budgetYtd?: number; varianceYtd?: number }
@@ -183,13 +184,13 @@ export function ManagementAccountsPage() {
               {editable && <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => act(() => api.put(`${path}/commentary`, { commentary: draft }), "Commentary saved.")}>Save commentary</button>}
               {can?.finalise && !data.frozen && data.pack && viewingLatest && (
                 <button type="button" className="btn" disabled={busy}
-                  onClick={() => { if (window.confirm(`Sign off ${f.period.label}? The pack is frozen and can only be changed by a new revision.`)) void act(() => api.post(`${path}/finalise`), `${f.period.label} signed off.`); }}>
+                  onClick={async () => { if (await confirmDialog(`Sign off ${f.period.label}? The pack is frozen and can only be changed by a new revision.`)) void act(() => api.post(`${path}/finalise`), `${f.period.label} signed off.`); }}>
                   Sign off
                 </button>
               )}
               {can?.prepare && data.frozen && viewingLatest && (
                 <button type="button" className="btn btn-secondary" disabled={busy}
-                  onClick={() => { const reason = window.prompt("Why is the pack being revised?"); if (reason) void act(() => api.post(`${path}/revise`, { reason }), "Revision started."); }}>
+                  onClick={async () => { const reason = await promptDialog({ message: "Why is the pack being revised?", required: true, multiline: true }); if (reason) void act(() => api.post(`${path}/revise`, { reason }), "Revision started."); }}>
                   Revise
                 </button>
               )}

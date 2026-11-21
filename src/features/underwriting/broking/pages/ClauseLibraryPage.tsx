@@ -15,6 +15,7 @@ import {
   type ClauseLibraryEntry,
   type ClauseLibraryPayload,
 } from "../api/clauseLibrary";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 const EMPTY_FORM: ClauseLibraryPayload = {
   code: "",
@@ -187,8 +188,8 @@ export function ClauseLibraryPage() {
               type="button"
               className="btn"
               disabled={refreshMutation.isPending || !refresh || refresh.applied || refresh.changedSlips === 0}
-              onClick={() => {
-                if (window.confirm(`Rewrite the clauses on ${refresh?.changedSlips} Draft slip(s)?`)) refreshMutation.mutate(true);
+              onClick={async () => {
+                if (await confirmDialog(`Rewrite the clauses on ${refresh?.changedSlips} Draft slip(s)?`)) refreshMutation.mutate(true);
               }}
             >
               Apply to {refresh && !refresh.applied ? refresh.changedSlips : 0} slip(s)

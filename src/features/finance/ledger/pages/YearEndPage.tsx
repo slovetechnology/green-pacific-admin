@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, openApiFile } from "@/shared/api/client";
 import { fmtMinor } from "../api/ledger";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 interface Year {
   year: number;
@@ -112,7 +113,7 @@ export function YearEndPage() {
               <p>Ready to close. The ledger is brought up to date first; the year is then frozen.</p>
               {data.canClose
                 ? <button type="button" className="btn" disabled={busy === y.year}
-                    onClick={() => { if (window.confirm(`Close ${y.year}? Nothing more can post into it unless it is reopened.`)) void close(y.year); }}>
+                    onClick={async () => { if (await confirmDialog(`Close ${y.year}? Nothing more can post into it unless it is reopened.`)) void close(y.year); }}>
                     {busy === y.year ? "Closing…" : `Close ${y.year}`}
                   </button>
                 : <p className="ledger-memo">A Finance Director closes the year.</p>}

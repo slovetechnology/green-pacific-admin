@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/shared/api/client";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { bpsText, errorText, useReinsuranceStatus, type Renewal } from "../lib/reinsurance";
+import { confirmDialog } from "@/shared/components/Dialogs";
 import "@/shared/styles/reinsurance.css";
 
 const BUCKETS = ["Overdue", "30 days", "60 days", "90 days"];
@@ -20,7 +21,7 @@ export function TreatyRenewalsPage() {
   if (!isLoading && !can("ri.view")) return <div className="flash flash-error">You don't have access to reinsurance.</div>;
 
   async function renew(r: Renewal) {
-    if (!window.confirm(`Renew ${r.treaty_ref} for the next period? A draft is created with this year's terms, and last year's reinsurers are invited.`)) return;
+    if (!(await confirmDialog(`Renew ${r.treaty_ref} for the next period? A draft is created with this year's terms, and last year's reinsurers are invited.`))) return;
     setError(null);
     try {
       const res = await api.post<{ placementId: number }>(`/api/reinsurance/treaties/${r.treaty_id}/renew`, {});

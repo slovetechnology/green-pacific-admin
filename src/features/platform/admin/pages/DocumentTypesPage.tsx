@@ -2,8 +2,8 @@ import { useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
-import { confirmAction } from "@/shared/components/ConfirmDialog";
 import { DataGrid, type DataGridColumn } from "@/shared/components/DataGrid";
+import { confirmDialog, promptDialog } from "@/shared/components/Dialogs";
 
 interface DocTypeRow {
   id: number;
@@ -78,10 +78,10 @@ export function DocumentTypesPage() {
     }
   }
 
-  function handleEdit(row: DocTypeRow) {
-    const nextName = row.is_locked ? row.name : window.prompt("Document type name", row.name);
+  async function handleEdit(row: DocTypeRow) {
+    const nextName = row.is_locked ? row.name : await promptDialog({ title: "Edit document type", message: "Document type name", defaultValue: row.name, required: true, confirmLabel: "Next" });
     if (nextName === null) return;
-    const nextDescription = window.prompt("Description (optional)", row.description || "");
+    const nextDescription = await promptDialog({ title: "Edit document type", message: "Description (optional)", defaultValue: row.description || "", multiline: true, confirmLabel: "Save" });
     if (nextDescription === null) return;
     void run(() => api.put(`/api/document-types/${row.id}`, { name: nextName, description: nextDescription }), "Could not save the change.");
   }
@@ -94,8 +94,8 @@ export function DocumentTypesPage() {
     void run(() => api.post(`/api/document-types/${row.id}/move`, { direction }), "Could not move the document type.");
   }
 
-  function handleDelete(row: DocTypeRow) {
-    if (!confirmAction(`Delete "${row.name}"? This can't be undone.`)) return;
+  async function handleDelete(row: DocTypeRow) {
+    if (!(await confirmDialog(`Delete "${row.name}"? This can't be undone.`))) return;
     void run(() => api.delete(`/api/document-types/${row.id}`), "Could not delete the document type.");
   }
 

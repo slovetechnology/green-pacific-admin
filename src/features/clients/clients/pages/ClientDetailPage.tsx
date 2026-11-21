@@ -5,11 +5,11 @@ import { api, apiUpload, ApiError, apiUrl, documentTooLarge } from "@/shared/api
 import { fmtMoney, fmtMoneyShort } from "@/shared/lib/format";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { RoleGate } from "@/app/guards/RoleGate";
-import { confirmAction } from "@/shared/components/ConfirmDialog";
 import { MetricStrip, type Metric } from "@/shared/components/exec/MetricStrip";
 import { Tabs, type TabDef } from "@/shared/components/exec/Tabs";
 import "@/shared/styles/executive.css";
 import { ClientCorrespondence } from "@/features/clients/messages/components/ClientCorrespondence";
+import { alertDialog, confirmDialog } from "@/shared/components/Dialogs";
 
 interface ClaimRow {
   id: number;
@@ -120,13 +120,13 @@ export function ClientDetailPage() {
   });
 
   async function handleDelete() {
-    if (!confirmAction("Delete this client? This cannot be undone.")) return;
+    if (!(await confirmDialog("Delete this client? This cannot be undone."))) return;
     try {
       await api.delete(`/api/clients/${clientId}`);
       await queryClient.invalidateQueries({ queryKey: ["clients"] });
       navigate("/clients");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not delete client.");
+      void alertDialog(err instanceof Error ? err.message : "Could not delete client.");
     }
   }
 
@@ -150,7 +150,7 @@ export function ClientDetailPage() {
   }
 
   async function handleDeleteContact(contactId: number) {
-    if (!confirmAction("Remove this contact?")) return;
+    if (!(await confirmDialog("Remove this contact?"))) return;
     await api.delete(`/api/contacts/${contactId}`);
     await refresh();
   }
@@ -189,7 +189,7 @@ export function ClientDetailPage() {
   }
 
   async function handleDeleteDocument(docId: number) {
-    if (!confirmAction("Delete this document?")) return;
+    if (!(await confirmDialog("Delete this document?"))) return;
     await api.delete(`/api/documents/${docId}`);
     await refresh();
   }

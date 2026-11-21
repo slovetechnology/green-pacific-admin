@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, apiUrl } from "@/shared/api/client";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { bpsText, errorText, minorText, percentToBps, type Party, type PlacementView } from "../lib/reinsurance";
+import { promptDialog } from "@/shared/components/Dialogs";
 
 type Run = (done: string | null, fn: () => Promise<unknown>) => Promise<void>;
 type Post = (path: string, body?: Record<string, unknown>) => Promise<unknown>;
@@ -218,7 +219,7 @@ export function CorrespondenceTab({ v, run, base, canEdit }: { v: PlacementView;
                 <td><StatusBadge status={c.status} /></td>
                 <td>{canEdit && c.status === "Draft" && <><button type="button" className="btn btn-sm" onClick={() => run("Marked sent.", () => api.post(`/api/reinsurance/correspondence/${c.id}/sent`))}>Mark sent</button>{" "}
                   <button type="button" className="btn-secondary btn btn-sm" onClick={() => run("Draft cancelled.", () => api.post(`/api/reinsurance/correspondence/${c.id}/cancelled`))}>Cancel</button></>}
-                  {canEdit && c.status === "Sent" && <button type="button" className="btn btn-sm" onClick={() => run("Acknowledged.", () => api.post(`/api/reinsurance/correspondence/${c.id}/acknowledged`, { note: window.prompt("Note (optional)") || undefined }))}>Acknowledged</button>}</td></tr>))}</tbody></table></div>
+                  {canEdit && c.status === "Sent" && <button type="button" className="btn btn-sm" onClick={async () => { const note = await promptDialog({ title: "Add a note", message: "Note (optional)", multiline: true }); if (note === null) return; void run("Acknowledged.", () => api.post(`/api/reinsurance/correspondence/${c.id}/acknowledged`, { note: note || undefined })); }}>Acknowledged</button>}</td></tr>))}</tbody></table></div>
       </div>
       {canEdit && (
         <form className="card" onSubmit={(e) => { e.preventDefault(); run("Logged.", () => api.post(`${base}/correspondence`, { ...note, party_id: note.party_id ? Number(note.party_id) : undefined })).then(() => setNote((n) => ({ ...n, subject: "", body: "" }))); }}>

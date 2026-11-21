@@ -4,9 +4,9 @@ import { api } from "@/shared/api/client";
 import { fmtMoney, fmtMoneyShort } from "@/shared/lib/format";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { RoleGate } from "@/app/guards/RoleGate";
-import { confirmAction } from "@/shared/components/ConfirmDialog";
 import { Panel } from "@/shared/components/exec/Panel";
 import { MetricStrip, type Metric } from "@/shared/components/exec/MetricStrip";
+import { alertDialog, confirmDialog } from "@/shared/components/Dialogs";
 import "@/shared/styles/executive.css";
 
 interface Insurer {
@@ -42,13 +42,13 @@ export function InsurerDetailPage() {
   });
 
   async function handleDelete() {
-    if (!confirmAction("Delete this insurer? This cannot be undone.")) return;
+    if (!(await confirmDialog("Delete this insurer? This cannot be undone."))) return;
     try {
       await api.delete(`/api/insurers/${insurerId}`);
       await queryClient.invalidateQueries({ queryKey: ["insurers"] });
       navigate("/insurers");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not delete insurer.");
+      void alertDialog(err instanceof Error ? err.message : "Could not delete insurer.");
     }
   }
 

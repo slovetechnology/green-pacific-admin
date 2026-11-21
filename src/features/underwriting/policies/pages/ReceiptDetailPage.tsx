@@ -6,6 +6,7 @@ import { fmtMoney } from "@/shared/lib/format";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { RoleGate } from "@/app/guards/RoleGate";
 import { EmailDocumentForm } from "@/shared/components/EmailDocumentForm";
+import { promptDialog } from "@/shared/components/Dialogs";
 
 interface Receipt {
   id: number;
@@ -64,7 +65,7 @@ export function ReceiptDetailPage() {
   const premium = allocations.reduce((s, a) => s + a.amount, 0);
 
   async function handleCancel() {
-    const reason = window.prompt("Reason for cancelling this receipt:");
+    const reason = await promptDialog({ message: "Reason for cancelling this receipt:", required: true, multiline: true });
     if (reason === null) return;
     setError(null);
     setBusy(true);

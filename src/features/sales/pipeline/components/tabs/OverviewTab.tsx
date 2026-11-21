@@ -11,6 +11,7 @@ import { GateNotice } from "../GateNotice";
 import { MoveDialog, type MoveRequest } from "../MoveDialog";
 import { describeError, legalMoves, missingOf, moveKind, tabForWhere, toFraction, toPercent, type GateItem, type Stage } from "../../lib/types";
 import { isClosed, type TabProps } from "./shared";
+import { promptDialog } from "@/shared/components/Dialogs";
 
 interface KycOptions {
   kyc: { id: number; status: string } | null;
@@ -63,7 +64,7 @@ export function OverviewTab({ detail, options, canWrite, isAdmin, refresh, onWin
   }
 
   async function archive() {
-    const reason = window.prompt("Why are you archiving this deal? (It is hidden, not deleted, and keeps its history.)");
+    const reason = await promptDialog({ message: "Why are you archiving this deal? (It is hidden, not deleted, and keeps its history.)", required: true, multiline: true });
     if (!reason?.trim()) return;
     try {
       await api.post(`/api/deals/${deal.id}/archive`, { reason });

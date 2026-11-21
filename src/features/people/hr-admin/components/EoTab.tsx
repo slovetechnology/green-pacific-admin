@@ -1,13 +1,13 @@
 import { useMemo, useState, type FormEvent } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { api } from "@/shared/api/client";
-import { confirmAction } from "@/shared/components/ConfirmDialog";
 import { useAction, useHrMeta } from "../hooks/useHrApi";
 import { useServerTable } from "../hooks/useServerTable";
 import type { EoPolicy } from "../lib/types";
 import { ExpiryBadge, Notice } from "./Badges";
 import { SelectField, TextField, money } from "./Fields";
 import { ServerTable } from "./ServerTable";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 const blank = {
   scope: "Individual", employee_id: "", insurer_name: "", policy_no: "", limit_per_claim: "", aggregate_limit: "", deductible: "", premium: "",
@@ -53,7 +53,7 @@ export function EoTab() {
         cell: ({ row }) => (
           <span className="hr-actions">
             <button type="button" className="btn-secondary btn btn-sm" onClick={() => open(row.original)}>Edit</button>
-            <button type="button" className="btn-secondary btn btn-sm" onClick={() => confirmAction(`Remove policy ${row.original.policy_no}?`) && run(() => api.delete(`/api/hr/eo-policies/${row.original.id}`), "Policy removed.")}>Remove</button>
+            <button type="button" className="btn-secondary btn btn-sm" onClick={async () => (await confirmDialog(`Remove policy ${row.original.policy_no}?`)) && run(() => api.delete(`/api/hr/eo-policies/${row.original.id}`), "Policy removed.")}>Remove</button>
           </span>
         ),
       },

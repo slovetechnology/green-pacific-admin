@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
-import { confirmAction } from "@/shared/components/ConfirmDialog";
+import { confirmDialog, promptDialog } from "@/shared/components/Dialogs";
 
 interface Member {
   id: number;
@@ -70,14 +70,14 @@ export function TeamPage() {
     if (await run(() => api.post("/api/team-admin/groups", { name: groupName }), "Could not add the group.")) setGroupName("");
   }
 
-  function renameGroup(g: Group) {
-    const name = window.prompt("Group name", g.name);
+  async function renameGroup(g: Group) {
+    const name = await promptDialog({ title: "Rename group", message: "Group name", defaultValue: g.name, required: true, confirmLabel: "Save" });
     if (name === null) return;
     void run(() => api.put(`/api/team-admin/groups/${g.id}`, { name }), "Could not rename the group.");
   }
 
-  function deleteGroup(g: Group) {
-    if (!confirmAction(`Delete the group "${g.name}"?`)) return;
+  async function deleteGroup(g: Group) {
+    if (!(await confirmDialog(`Delete the group "${g.name}"?`))) return;
     void run(() => api.delete(`/api/team-admin/groups/${g.id}`), "Could not delete the group.");
   }
 
@@ -104,8 +104,8 @@ export function TeamPage() {
     void run(() => api.put(`/api/team-admin/members/${m.id}`, { is_published: m.is_published ? 0 : 1 }), "Could not save the change.");
   }
 
-  function deleteMember(m: Member) {
-    if (!confirmAction(`Remove ${m.full_name} from the team?`)) return;
+  async function deleteMember(m: Member) {
+    if (!(await confirmDialog(`Remove ${m.full_name} from the team?`))) return;
     void run(() => api.delete(`/api/team-admin/members/${m.id}`), "Could not remove the person.");
   }
 

@@ -11,6 +11,7 @@ import {
 import type { ApprovePendingResult } from "../api/brokingSlips";
 import { RoleGate } from "@/app/guards/RoleGate";
 import { fmtMoney } from "@/shared/lib/format";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 export function BrokingSlipsListPage() {
   const queryClient = useQueryClient();
@@ -58,12 +59,10 @@ export function BrokingSlipsListPage() {
   const pendingApproval = countOf("Draft", "Under Review");
   const submittedCount = countOf("Submitted", "Quoted");
 
-  const approveAll = () => {
+  const approveAll = async () => {
     if (!pendingApproval) return;
-    const ok = window.confirm(
-      `Approve all ${pendingApproval} slips that are in Draft or Under Review?\n\n` +
-      "Each approval is recorded in the audit log under your name, and a policy document is issued for every slip linked to a policy. This cannot be undone in bulk."
-    );
+    const ok = await confirmDialog(`Approve all ${pendingApproval} slips that are in Draft or Under Review?\n\n` +
+      "Each approval is recorded in the audit log under your name, and a policy document is issued for every slip linked to a policy. This cannot be undone in bulk.");
     if (ok) approveAllMutation.mutate();
   };
 

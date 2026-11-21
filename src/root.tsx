@@ -1,3 +1,4 @@
+import { DialogHost } from "@/shared/components/Dialogs";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import { queryClient } from "@/app/providers/queryClient";
@@ -59,6 +60,7 @@ export default function Root() {
       <AuthProvider>
         <Outlet />
       </AuthProvider>
+      <DialogHost />
     </QueryClientProvider>
   );
 }

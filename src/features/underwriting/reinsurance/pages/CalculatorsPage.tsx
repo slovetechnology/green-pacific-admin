@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/shared/api/client";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { bpsText, errorText, minorDecimal, minorText, useReinsuranceStatus, type TreatyView } from "../lib/reinsurance";
+import { promptDialog } from "@/shared/components/Dialogs";
 import "@/shared/styles/reinsurance.css";
 
 interface Deficit { year: number; amount_minor: number }
@@ -68,12 +69,12 @@ export function CalculatorsPage() {
                 <td>
                   {c.status === "Draft" && can("ri.calc.approve") && <>
                     <button type="button" className="btn btn-sm" onClick={() => run("Approved.", () => api.post(`/api/reinsurance/commission-calcs/${c.id}/decide`, { approve: true }))}>Approve</button>{" "}
-                    <button type="button" className="btn-secondary btn btn-sm" onClick={() => { const note = window.prompt("Why is this being rejected?"); if (note) run("Rejected.", () => api.post(`/api/reinsurance/commission-calcs/${c.id}/decide`, { approve: false, note })); }}>Reject</button>{" "}</>}
+                    <button type="button" className="btn-secondary btn btn-sm" onClick={async () => { const note = await promptDialog({ message: "Why is this being rejected?", required: true, multiline: true }); if (note) run("Rejected.", () => api.post(`/api/reinsurance/commission-calcs/${c.id}/decide`, { approve: false, note })); }}>Reject</button>{" "}</>}
                   {c.status === "Draft" && can("ri.accounts.post") && <button type="button" className="btn-secondary btn btn-sm" onClick={() => run("Withdrawn.", () => api.post(`/api/reinsurance/commission-calcs/${c.id}/withdraw`))}>Withdraw</button>}
                   {c.status === "Approved" && !c.posted_account_ref && can("ri.accounts.post") && c.order_adjustment_minor !== 0 && accounts.data?.rows.length ? (
                     <select aria-label="Post to a draft treaty account" defaultValue="" onChange={(e) => { if (e.target.value) run("Posted to the treaty account.", () => api.post(`/api/reinsurance/commission-calcs/${c.id}/post`, { account_id: Number(e.target.value) })); }}>
                       <option value="">Post to account…</option>{accounts.data.rows.map((a) => <option key={a.id} value={a.id}>{a.account_ref} ({a.period_start} to {a.period_end})</option>)}</select>) : null}
-                  {c.status === "Approved" && !c.posted_account_ref && can("ri.calc.approve") && <button type="button" className="btn-secondary btn btn-sm" onClick={() => { const reason = window.prompt("Why is this approved calculation being voided?"); if (reason) run("Voided.", () => api.post(`/api/reinsurance/commission-calcs/${c.id}/void`, { reason })); }}>Void</button>}
+                  {c.status === "Approved" && !c.posted_account_ref && can("ri.calc.approve") && <button type="button" className="btn-secondary btn btn-sm" onClick={async () => { const reason = await promptDialog({ message: "Why is this approved calculation being voided?", required: true, multiline: true }); if (reason) run("Voided.", () => api.post(`/api/reinsurance/commission-calcs/${c.id}/void`, { reason })); }}>Void</button>}
                 </td></tr>))}</tbody></table></div>
         <p className="ri-note">A calculation is frozen when saved, and a different person approves it. Once approved it can be posted to a draft treaty account as an adjustment, which is shared across the reinsurers by their signed lines. Treaty accounts must be open (Draft) to receive it.</p>
       </div>

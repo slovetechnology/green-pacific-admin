@@ -3,8 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
 import { RoleGate } from "@/app/guards/RoleGate";
 import { DataGrid, type DataGridColumn } from "@/shared/components/DataGrid";
-import { confirmAction } from "@/shared/components/ConfirmDialog";
 import { ChartOfAccountsTree, type CoaAccount } from "@/features/finance/accounting/components/ChartOfAccountsTree";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 type Account = CoaAccount;
 
@@ -63,7 +63,7 @@ export function ChartOfAccountsPage() {
   }
 
   async function loadStandardChart() {
-    if (!confirmAction("Load the standard insurance-broker chart of accounts? Existing account codes are left unchanged.")) return;
+    if (!(await confirmDialog("Load the standard insurance-broker chart of accounts? Existing account codes are left unchanged."))) return;
     setError(null);
     try {
       const result = await api.post<{ createdCount: number; existingCount: number; warnings: string[] }>("/api/chart-of-accounts/seed", {});
@@ -94,7 +94,7 @@ export function ChartOfAccountsPage() {
   }
 
   async function archiveAccount(account: Account) {
-    if (!confirmAction(`Archive account ${account.code} - ${account.name}?`)) return;
+    if (!(await confirmDialog(`Archive account ${account.code} - ${account.name}?`))) return;
     try {
       await api.delete(`/api/chart-of-accounts/${account.id}`);
       await queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });

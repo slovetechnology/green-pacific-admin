@@ -5,6 +5,7 @@ import { api } from "@/shared/api/client";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { useAuth } from "@/features/platform/auth/AuthContext";
 import { errorText, minorText, useReinsuranceStatus } from "../lib/reinsurance";
+import { promptDialog } from "@/shared/components/Dialogs";
 import "@/shared/styles/reinsurance.css";
 
 interface Alert { billing_id: number; billing_ref: string; placement_id: number; currency: string; amount_minor: number; severity: "high" | "medium"; kind: string; message: string }
@@ -48,7 +49,7 @@ export function AccountsHubPage() {
   const decide = (url: string, label: string, requestedBy: string) => requestedBy === mine
     ? <span className="muted">Needs another person</span>
     : <>{can("ri.remit.approve") && <><button type="button" className="btn btn-sm" onClick={() => act(`${label} approved.`, () => api.post(url, { approve: true }))}>Approve</button>{" "}
-      <button type="button" className="btn-secondary btn btn-sm" onClick={() => act(`${label} rejected.`, () => api.post(url, { approve: false, note: window.prompt("Reason (optional)") || undefined }))}>Reject</button></>}</>;
+      <button type="button" className="btn-secondary btn btn-sm" onClick={async () => { const note = await promptDialog({ title: "Reject", message: "Reason (optional)", multiline: true }); if (note === null) return; void act(`${label} rejected.`, () => api.post(url, { approve: false, note: note || undefined })); }}>Reject</button></>}</>;
   const waiting = p ? p.remittances.length + p.brokerageTransfers.length + p.setoffs.length + p.manualJournals.length + p.mappings.length : 0;
 
   return (

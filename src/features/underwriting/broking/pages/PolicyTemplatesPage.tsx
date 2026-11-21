@@ -10,6 +10,7 @@ import {
   type PolicyTemplate,
   type PolicyTemplatePayload,
 } from "../api/policyTemplates";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 const EMPTY: PolicyTemplatePayload = { classOfBusiness: "", title: "", preamble: "", operativeClause: "", footerNote: "" };
 
@@ -158,8 +159,8 @@ export function PolicyTemplatesPage() {
                         type="button"
                         className="btn-secondary btn-sm"
                         disabled={retireMutation.isPending}
-                        onClick={() => {
-                          if (window.confirm(`Retire the template for ${t.class_of_business}? That class will use the default.`)) retireMutation.mutate(t.id as number);
+                        onClick={async () => {
+                          if (await confirmDialog(`Retire the template for ${t.class_of_business}? That class will use the default.`)) retireMutation.mutate(t.id as number);
                         }}
                       >
                         Retire

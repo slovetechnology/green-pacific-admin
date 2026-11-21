@@ -5,6 +5,7 @@ import { api } from "@/shared/api/client";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { useAuth } from "@/features/platform/auth/AuthContext";
 import { errorText, useReinsuranceStatus } from "../lib/reinsurance";
+import { confirmDialog, promptDialog } from "@/shared/components/Dialogs";
 import "@/shared/styles/reinsurance.css";
 
 function useAct() {
@@ -44,7 +45,7 @@ export function ApprovalsPage() {
               <td>{a.warnings.length ? <ul style={{ margin: 0, paddingLeft: "1rem" }}>{a.warnings.map((w) => <li key={w}>{w}</li>)}</ul> : "None"}</td>
               <td>{a.requested_by === user?.username ? <span className="muted">Needs another person</span> : <>
                 <button type="button" className="btn btn-sm" onClick={() => act(`${a.action} approved.`, () => api.post(`/api/reinsurance/approvals/${a.id}/decision`, { approve: true }))}>Approve</button>{" "}
-                <button type="button" className="btn-secondary btn btn-sm" onClick={() => act("Rejected.", () => api.post(`/api/reinsurance/approvals/${a.id}/decision`, { approve: false, note: window.prompt("Reason (optional)") || undefined }))}>Reject</button></>}</td></tr>))}</tbody></table></div></div>
+                <button type="button" className="btn-secondary btn btn-sm" onClick={async () => { const note = await promptDialog({ title: "Reject", message: "Reason (optional)", multiline: true }); if (note === null) return; void act("Rejected.", () => api.post(`/api/reinsurance/approvals/${a.id}/decision`, { approve: false, note: note || undefined })); }}>Reject</button></>}</td></tr>))}</tbody></table></div></div>
     </div>
   );
 }
@@ -72,7 +73,7 @@ export function GovernancePage() {
   const decisionButtons = (url: string, by: string, regulatory = false) => by === user?.username
     ? <span className="muted">Needs another person</span>
     : decide ? <>
-      <button type="button" className="btn btn-sm" onClick={() => act("Approved.", () => api.post(url, { approve: true, verified: regulatory && window.confirm("Have you checked this rule against the current NIIRA 2025 text and NAICOM circulars? OK marks it verified.") }))}>Approve</button>{" "}
+      <button type="button" className="btn btn-sm" onClick={async () => { const verified = regulatory && (await confirmDialog({ title: "Approve rule", message: "Have you checked this rule against the current NIIRA 2025 text and NAICOM circulars? Choosing \"Yes, verified\" marks it verified; \"Not yet\" approves it unverified.", confirmLabel: "Yes, verified", cancelLabel: "Not yet" })); void act("Approved.", () => api.post(url, { approve: true, verified })); }}>Approve</button>{" "}
       <button type="button" className="btn-secondary btn btn-sm" onClick={() => act("Rejected.", () => api.post(url, { approve: false }))}>Reject</button></> : null;
   return (
     <div>

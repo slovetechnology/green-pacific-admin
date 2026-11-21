@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchBrokingSlip, fetchPlacement, updateBrokingSlip, type ClauseGroup, type PlacementPayload } from "../api/brokingSlips";
 import { NIGERIA_LGAS, NIGERIA_STATES, matchState } from "@/shared/lib/nigeriaLocations";
+import { confirmDialog } from "@/shared/components/Dialogs";
 import "@/shared/styles/placement.css";
 
 type Currency = "NGN" | "USD";
@@ -146,8 +147,8 @@ export function PlacementSlipPage() {
 
   const patchClause = (key: string, patch: Partial<WorkingClause>) =>
     setClauses((list) => list.map((c) => (c.key === key ? { ...c, ...patch } : c)));
-  const removeClause = (c: WorkingClause) => {
-    if (c.mandatory && !window.confirm(`"${c.title}" is a mandatory clause for this class. Remove it from this slip anyway?`)) return;
+  const removeClause = async (c: WorkingClause) => {
+    if (c.mandatory && !(await confirmDialog(`"${c.title}" is a mandatory clause for this class. Remove it from this slip anyway?`))) return;
     setClauses((list) => list.filter((x) => x.key !== c.key));
   };
   const addClause = (group: ClauseGroup) =>

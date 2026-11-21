@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
 import { useGlAccess, usePostingAccounts, type Account } from "../api/ledger";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 interface Settings {
   settings: Record<string, string>;
@@ -319,7 +320,7 @@ function CommissionDefaults({ canEdit }: { canEdit: boolean }) {
   }
 
   async function remove(id: number) {
-    if (!window.confirm("Remove this default?")) return;
+    if (!(await confirmDialog("Remove this default?"))) return;
     try {
       await api.delete(`/api/commission-rates/${id}`);
       await queryClient.invalidateQueries({ queryKey: ["commission-rates"] });

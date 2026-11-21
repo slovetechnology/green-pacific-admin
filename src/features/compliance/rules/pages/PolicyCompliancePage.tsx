@@ -5,6 +5,7 @@ import { api, ApiError } from "@/shared/api/client";
 import { RoleGate } from "@/app/guards/RoleGate";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { useAuth } from "@/features/platform/auth/AuthContext";
+import { promptDialog } from "@/shared/components/Dialogs";
 
 interface ComplianceException {
   id: number;
@@ -107,7 +108,7 @@ function ExceptionsTab() {
   }
 
   async function override(e: ComplianceException) {
-    const reason = window.prompt(`Override "${e.rule_name}" on ${e.policy_no || `policy #${e.transaction_id}`}? Reason (recorded):`);
+    const reason = await promptDialog({ title: "Override compliance rule", message: `Override "${e.rule_name}" on ${e.policy_no || `policy #${e.transaction_id}`}? Reason (recorded):`, required: true, multiline: true, confirmLabel: "Override" });
     if (!reason || !reason.trim()) return;
     try {
       await api.post(`/api/policy-compliance/exceptions/${e.id}/override`, { reason });

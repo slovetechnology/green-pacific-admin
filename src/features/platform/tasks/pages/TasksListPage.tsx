@@ -2,10 +2,10 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/shared/api/client";
 import { RoleGate } from "@/app/guards/RoleGate";
-import { confirmAction } from "@/shared/components/ConfirmDialog";
 import { DataGrid, type DataGridColumn } from "@/shared/components/DataGrid";
 import { ListSearch } from "@/shared/components/ListSearch";
 import { useRowSearch } from "@/shared/hooks/useRowSearch";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 interface TaskRow {
   id: number;
@@ -57,7 +57,7 @@ export function TasksListPage() {
   }
 
   async function deleteTask(taskId: number) {
-    if (!confirmAction("Delete this task?")) return;
+    if (!(await confirmDialog("Delete this task?"))) return;
     await api.delete(`/api/tasks/${taskId}`);
     await queryClient.invalidateQueries({ queryKey: ["tasks"] });
   }

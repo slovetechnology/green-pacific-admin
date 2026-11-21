@@ -1202,6 +1202,10 @@ div.actions-row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wr
 .pl-modal .exec-drawer-close { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-1); color: var(--text-secondary); font-size: 0.9rem; line-height: 1; cursor: pointer; box-shadow: none; }
 .pl-modal .exec-drawer-close:hover { border-color: var(--brand); color: var(--brand); }
 .pl-modal-foot .btn { margin: 0; }
+/* The app's confirm / prompt / alert dialogs (shared/components/Dialogs.tsx). */
+.app-dialog { width: min(28rem, calc(100vw - 2rem)); }
+.app-dialog-message { margin: 0; white-space: pre-line; line-height: 1.5; }
+.app-dialog .pl-modal-body { margin: 0; }
 /* A confirmation: the key facts in a band, then what happens. */
 .confirm-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.75rem 1rem; padding: 0.85rem 1rem; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); }
 .confirm-summary .k { font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-secondary); }

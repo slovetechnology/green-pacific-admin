@@ -5,6 +5,7 @@ import { api } from "@/shared/api/client";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { DataGrid, type DataGridColumn } from "@/shared/components/DataGrid";
 import { bpsText, errorText, minorDecimal, minorText, useReinsuranceStatus, type PlacementView } from "../lib/reinsurance";
+import { promptDialog } from "@/shared/components/Dialogs";
 import "@/shared/styles/reinsurance.css";
 
 interface Figures { paid_minor: number; outstanding_minor: number; incurred_minor: number; called_minor: number; callable_minor: number; reinstated_minor: number }
@@ -150,8 +151,8 @@ export function RiClaimDetailPage() {
         <p className="ri-note">{c.cedant_claim_ref ? `${c.cedant_claim_ref} · ` : ""}{c.insured ? `${c.insured} · ` : ""}<Link to={`/reinsurance/placements/${c.placement_id}`}>{v.placement.placement_ref}</Link>{v.treaty && <> · <Link to={`/reinsurance/treaties/${v.treaty.id}`}>{v.treaty.treaty_ref}</Link></>}{v.layer && ` · layer ${v.layer.layer_no}`} · loss {c.loss_date}, notified {c.notified_date}</p></div>
         {handle && <div className="page-header-actions">
           {live && <button type="button" className="btn-secondary btn" onClick={() => run("Claim closed.", () => api.post(`${base}/status`, { action: "close" }))}>Close</button>}
-          {live && <button type="button" className="btn-secondary btn" onClick={() => { const reason = window.prompt("Why is this claim being declined?"); if (reason) run("Claim declined.", () => api.post(`${base}/status`, { action: "decline", reason })); }}>Decline</button>}
-          {!live && <button type="button" className="btn-secondary btn" onClick={() => { const reason = window.prompt("Why is this claim being reopened?"); if (reason) run("Claim reopened.", () => api.post(`${base}/status`, { action: "reopen", reason })); }}>Reopen</button>}
+          {live && <button type="button" className="btn-secondary btn" onClick={async () => { const reason = await promptDialog({ message: "Why is this claim being declined?", required: true, multiline: true }); if (reason) run("Claim declined.", () => api.post(`${base}/status`, { action: "decline", reason })); }}>Decline</button>}
+          {!live && <button type="button" className="btn-secondary btn" onClick={async () => { const reason = await promptDialog({ message: "Why is this claim being reopened?", required: true, multiline: true }); if (reason) run("Claim reopened.", () => api.post(`${base}/status`, { action: "reopen", reason })); }}>Reopen</button>}
         </div>}</div>
       {flash && <div className={`flash flash-${flash.kind}`}>{flash.text}</div>}
       {c.status_reason && <div className="flash flash-info">{c.status}: {c.status_reason}</div>}
@@ -190,7 +191,7 @@ export function RiClaimDetailPage() {
             {v.cashCalls.map((k) => <tr key={k.id}><td>{k.call_ref}{k.urgent ? <span className="ri-note"> · urgent</span> : null}<div className="ri-note">{k.note}</div></td>
               <td><Link to={`/reinsurance/billings/${k.billing_id}`}>{k.billing_ref}</Link></td><td>{k.due_date}</td><td className="ri-num">{minorText(k.amount_minor, cur)}</td><td className="ri-num">{minorText(k.order_amount_minor, cur)}</td><td className="ri-num">{minorText(k.collected_minor, cur)}</td>
               <td><StatusBadge status={k.status} /></td>
-              <td>{handle && k.status === "Issued" && <button type="button" className="btn-secondary btn btn-sm" onClick={() => { const reason = window.prompt("Why is this cash call being cancelled?"); if (reason) run("Cash call cancelled.", () => api.post(`/api/reinsurance/cash-calls/${k.id}/cancel`, { reason })); }}>Cancel</button>}</td></tr>)}</tbody></table></div>
+              <td>{handle && k.status === "Issued" && <button type="button" className="btn-secondary btn btn-sm" onClick={async () => { const reason = await promptDialog({ message: "Why is this cash call being cancelled?", required: true, multiline: true }); if (reason) run("Cash call cancelled.", () => api.post(`/api/reinsurance/cash-calls/${k.id}/cancel`, { reason })); }}>Cancel</button>}</td></tr>)}</tbody></table></div>
         {handle && live && f.callable_minor > 0 && (
           <form onSubmit={(e) => { e.preventDefault(); run("Cash call issued and billed to the reinsurers.", () => api.post(`${base}/cash-calls`, { ...cc, amount: cc.amount || undefined, requested_date: cc.requested_date || undefined }).then(() => setCc({ amount: "", requested_date: "", due_date: "", urgent: false, note: "" }))); }}>
             <div className="ri-inline">
@@ -210,8 +211,8 @@ export function RiClaimDetailPage() {
           {v.reinstatements.length > 0 && <div className="table-wrap"><table className="data-table"><thead><tr><th>Loss date</th><th className="ri-num">Limit restored</th><th className="ri-num">Premium (100%)</th><th>Status</th><th /></tr></thead>
             <tbody>{v.reinstatements.map((r) => <tr key={r.id}><td>{r.loss_date}</td><td className="ri-num">{minorText(r.amount_minor, cur)}</td><td className="ri-num">{minorText(r.premium_minor, cur)}</td><td><StatusBadge status={r.status} />{r.billing_id && <> <Link to={`/reinsurance/billings/${r.billing_id}`}>billing</Link></>}</td>
               <td>
-                {can("ri.accounts.post") && r.status === "Calculated" && r.premium_minor > 0 && <button type="button" className="btn btn-sm" onClick={() => { const due = window.prompt("Payable by (YYYY-MM-DD)?"); if (due) run("Reinstatement premium billed.", () => api.post(`/api/reinsurance/reinstatements/${r.id}/bill`, { due_date: due })); }}>Bill</button>}
-                {handle && r.status !== "Cancelled" && <button type="button" className="btn-secondary btn btn-sm" onClick={() => { const reason = window.prompt("Why is this being cancelled?"); if (reason) run("Reinstatement cancelled.", () => api.post(`/api/reinsurance/reinstatements/${r.id}/cancel`, { reason })); }}>Cancel</button>}
+                {can("ri.accounts.post") && r.status === "Calculated" && r.premium_minor > 0 && <button type="button" className="btn btn-sm" onClick={async () => { const due = await promptDialog({ message: "Payable by (YYYY-MM-DD)?", required: true }); if (due) run("Reinstatement premium billed.", () => api.post(`/api/reinsurance/reinstatements/${r.id}/bill`, { due_date: due })); }}>Bill</button>}
+                {handle && r.status !== "Cancelled" && <button type="button" className="btn-secondary btn btn-sm" onClick={async () => { const reason = await promptDialog({ message: "Why is this being cancelled?", required: true, multiline: true }); if (reason) run("Reinstatement cancelled.", () => api.post(`/api/reinsurance/reinstatements/${r.id}/cancel`, { reason })); }}>Cancel</button>}
               </td></tr>)}</tbody></table></div>}
           {handle && f.paid_minor > f.reinstated_minor && (
             <>

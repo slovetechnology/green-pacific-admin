@@ -5,6 +5,7 @@ import { api, ApiError } from "@/shared/api/client";
 import { RoleGate } from "@/app/guards/RoleGate";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { kobo, type ReconException, type StatementDetail, type StatementLine } from "../lib/premiumStatements";
+import { promptDialog } from "@/shared/components/Dialogs";
 
 interface Candidate { id: number; policy_no: string; debit_note_no: string | null; trans_date: string; premium_due: number; brokerage: number; client_name: string }
 
@@ -60,13 +61,13 @@ export function PremiumStatementDetailPage() {
           <div className="page-header-actions">
             {open && (
               <button type="button" className="btn" disabled={openEx.length > 0} title={openEx.length ? "Close every exception first" : ""}
-                onClick={() => act(() => api.post(`/api/premium-statements/${s.id}/reconcile`, { note: window.prompt("Note for the reconciliation (optional)") ?? "" }), "Statement reconciled.")}>
+                onClick={async () => { const note = await promptDialog({ title: "Reconcile statement", message: "Note for the reconciliation (optional)", multiline: true, confirmLabel: "Reconcile" }); if (note === null) return; void act(() => api.post(`/api/premium-statements/${s.id}/reconcile`, { note }), "Statement reconciled."); }}>
                 Mark reconciled
               </button>
             )}
             {s.status !== "Void" && (
               <button type="button" className="btn btn-secondary"
-                onClick={() => { const reason = window.prompt("Why void this statement?"); if (reason) void act(() => api.post(`/api/premium-statements/${s.id}/void`, { reason }), "Statement voided."); }}>
+                onClick={async () => { const reason = await promptDialog({ message: "Why void this statement?", required: true, multiline: true }); if (reason) void act(() => api.post(`/api/premium-statements/${s.id}/void`, { reason }), "Statement voided."); }}>
                 Void
               </button>
             )}

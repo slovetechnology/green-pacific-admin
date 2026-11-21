@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
 import { fmtMinor } from "../api/ledger";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 interface Position { asAt: string; trustBank: number; held: number; owed: number; surplus: number; available: number }
 interface TransferJournal { id: number; journal_no: string | null; journal_date: string; status: string; total_cents: number; created_by: string; approved_by: string | null; reason: string | null; reversed_by_id: number | null; live: boolean }
@@ -110,7 +111,7 @@ export function CommissionTransferPage() {
             {!data.can.approve && <span className="ledger-memo">A Finance Director approves the transfer.</span>}
             {data.can.draft && (
               <button type="button" className="btn btn-secondary" disabled={busy}
-                onClick={() => { if (window.confirm("Discard this draft transfer?")) void act(async () => { await api.delete(`/api/gl/commission-transfer/${data.pending!.id}`); return "Draft discarded."; }); }}>
+                onClick={async () => { if (await confirmDialog("Discard this draft transfer?")) void act(async () => { await api.delete(`/api/gl/commission-transfer/${data.pending!.id}`); return "Draft discarded."; }); }}>
                 Discard
               </button>
             )}

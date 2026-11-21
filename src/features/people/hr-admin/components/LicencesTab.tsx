@@ -1,13 +1,13 @@
 import { useMemo, useState, type FormEvent } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { api } from "@/shared/api/client";
-import { confirmAction } from "@/shared/components/ConfirmDialog";
 import { useAction, useHrMeta } from "../hooks/useHrApi";
 import { useServerTable } from "../hooks/useServerTable";
 import type { Licence } from "../lib/types";
 import { ExpiryBadge, Notice } from "./Badges";
 import { SelectField, TextField } from "./Fields";
 import { ServerTable } from "./ServerTable";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 const blank = { employee_id: "", licence_type: "NAICOM Individual Agent", licence_no: "", jurisdiction: "Nigeria", status: "Active", issued_on: "", expires_on: "", notes: "" };
 
@@ -50,7 +50,7 @@ export function LicencesTab() {
             <button type="button" className="btn-secondary btn btn-sm" onClick={() => open(row.original)}>Edit</button>
             <button
               type="button" className="btn-secondary btn btn-sm"
-              onClick={() => confirmAction(`Remove ${row.original.licence_type} ${row.original.licence_no}?`) && run(() => api.delete(`/api/hr/licences/${row.original.id}`), "Licence removed.")}
+              onClick={async () => (await confirmDialog(`Remove ${row.original.licence_type} ${row.original.licence_no}?`)) && run(() => api.delete(`/api/hr/licences/${row.original.id}`), "Licence removed.")}
             >
               Remove
             </button>

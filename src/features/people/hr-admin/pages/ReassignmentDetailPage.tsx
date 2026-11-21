@@ -9,6 +9,7 @@ import { money } from "../components/Fields";
 import { useHrAccess } from "../context/HrAccessContext";
 import { useAction } from "../hooks/useHrApi";
 import type { Reassignment } from "../lib/types";
+import { confirmDialog } from "@/shared/components/Dialogs";
 import "../hr-admin.css";
 
 // One transfer: what it moves, who asked and who decided, and the actions its status allows.
@@ -65,7 +66,7 @@ export function ReassignmentDetailPage() {
           <h2>Execute</h2>
           <p className="hr-hint">Moves every client and policy below in one step. If anything fails, nothing is moved.</p>
           <div className="form-actions">
-            <button type="button" className="btn" disabled={busy} onClick={() => window.confirm(`Move ${r.client_count} clients from ${r.from_username} to ${r.to_username}?`) && run(() => api.post(`${path}/execute`, {}), "Reassignment executed.")}>Execute reassignment</button>
+            <button type="button" className="btn" disabled={busy} onClick={async () => (await confirmDialog(`Move ${r.client_count} clients from ${r.from_username} to ${r.to_username}?`)) && run(() => api.post(`${path}/execute`, {}), "Reassignment executed.")}>Execute reassignment</button>
           </div>
         </div>
       )}

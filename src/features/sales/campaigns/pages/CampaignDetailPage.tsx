@@ -5,6 +5,7 @@ import { api, ApiError } from "@/shared/api/client";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { RoleGate } from "@/app/guards/RoleGate";
 import { fmtMoney } from "@/shared/lib/format";
+import { alertDialog } from "@/shared/components/Dialogs";
 
 interface Campaign {
   id: number;
@@ -66,7 +67,7 @@ export function CampaignDetailPage() {
       const result = await api.post<{ added: number }>(`/api/campaigns/${campaignId}/recipients`, { manual_recipients: manualRecipients });
       setManualRecipients("");
       await refresh();
-      alert(`${result.added} recipient(s) added.`);
+      void alertDialog(`${result.added} recipient(s) added.`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -84,9 +85,9 @@ export function CampaignDetailPage() {
       });
       await refresh();
       if (result.channel === "Email") {
-        alert(`Marked ${result.sentCount} recipient(s) as sent — ${result.emailCount} actual email(s) sent through Resend (the rest had no email on file, or Resend isn't configured).`);
+        void alertDialog(`Marked ${result.sentCount} recipient(s) as sent — ${result.emailCount} actual email(s) sent through Resend (the rest had no email on file, or Resend isn't configured).`);
       } else {
-        alert(`Logged ${result.sentCount} ${result.channel} send(s) in the CRM — no live ${result.channel} provider is configured, so nothing was actually transmitted.`);
+        void alertDialog(`Logged ${result.sentCount} ${result.channel} send(s) in the CRM — no live ${result.channel} provider is configured, so nothing was actually transmitted.`);
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
 import { fmtMoney } from "@/shared/lib/format";
 import { useSubBrokerMeta, type SubBroker } from "../lib/subBrokers";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 interface TxInfo {
   isNote: boolean;
@@ -90,7 +91,7 @@ export function SubBrokerPanel({ txId, isNote }: { txId: string; isNote: boolean
           {can("subbroker.edit") && !isNote && (
             <div className="form-actions">
               <button type="button" className="btn-secondary btn btn-sm" disabled={detach.isPending}
-                onClick={() => { if (window.confirm("Detach this sub-broker? Any commission already posted is reversed. This isn't possible once commission has been paid.")) detach.mutate(); }}>
+                onClick={async () => { if (await confirmDialog("Detach this sub-broker? Any commission already posted is reversed. This isn't possible once commission has been paid.")) detach.mutate(); }}>
                 Detach sub-broker
               </button>
             </div>

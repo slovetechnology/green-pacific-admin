@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
 import { RoleGate } from "@/app/guards/RoleGate";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 interface Period {
   year: number;
@@ -70,7 +71,7 @@ export function AccountingPeriodsPage() {
         {openEnded.length > 0 && (
           <div className="toolbar" style={{ marginBottom: "1rem" }}>
             <button type="button" className="btn btn-secondary" disabled={busy}
-              onClick={() => { if (window.confirm(`Close ${openEnded.length} ended month(s) of ${year}?`)) void setStatus(openEnded, "Closed"); }}>
+              onClick={async () => { if (await confirmDialog(`Close ${openEnded.length} ended month(s) of ${year}?`)) void setStatus(openEnded, "Closed"); }}>
               Close all ended months of {year} ({openEnded.length})
             </button>
           </div>
@@ -96,7 +97,7 @@ export function AccountingPeriodsPage() {
                       <td>
                         <RoleGate need="write">
                           <button type="button" className="btn btn-secondary btn-sm" disabled={busy}
-                            onClick={() => { if (window.confirm(`${closed ? "Reopen" : "Close"} ${name} ${year}?`)) void setStatus([m], closed ? "Open" : "Closed"); }}>
+                            onClick={async () => { if (await confirmDialog(`${closed ? "Reopen" : "Close"} ${name} ${year}?`)) void setStatus([m], closed ? "Open" : "Closed"); }}>
                             {closed ? "Reopen" : "Close"}
                           </button>
                         </RoleGate>

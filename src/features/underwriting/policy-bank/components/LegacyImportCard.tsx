@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { pb, usePbAccess } from "../api/policyBank";
 import { Flash, useAct } from "./PbCommon";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 interface ImportResult {
   dryRun: boolean; considered: number; imported: number; alreadyImported: number; skippedRetired: number; skippedEmpty: number; insurerSpecific: number;
@@ -47,7 +48,7 @@ export function LegacyImportCard() {
                 </div>
               )}
               {p.dryRun && p.imported > 0 && (
-                <button type="button" className="btn" disabled={run.isPending} onClick={() => { if (window.confirm(`Import ${p.imported} wording(s) as drafts?`)) run.mutate(undefined); }}>
+                <button type="button" className="btn" disabled={run.isPending} onClick={async () => { if (await confirmDialog(`Import ${p.imported} wording(s) as drafts?`)) run.mutate(undefined); }}>
                   {run.isPending ? "Importing…" : `Import ${p.imported} wording(s) as drafts`}
                 </button>
               )}

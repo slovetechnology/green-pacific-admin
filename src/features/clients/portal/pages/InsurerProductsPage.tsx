@@ -4,6 +4,7 @@ import { api, ApiError } from "@/shared/api/client";
 import { useAuth } from "@/features/platform/auth/AuthContext";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { dateTime } from "../api";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 interface ProviderSwitches {
   providers: { code: string; name: string; enabled: boolean }[];
@@ -24,7 +25,7 @@ export function InsurerProductsPage() {
   const [busy, setBusy] = useState<string | null>(null);
 
   async function toggle(code: string, name: string, enabled: boolean) {
-    if (!enabled && !window.confirm(`Switch ${name} off? Customers will no longer see or quote for its products until it is switched back on.`)) return;
+    if (!enabled && !(await confirmDialog({ title: `Switch ${name} off?`, message: "Customers will no longer see or quote for its products until it is switched back on. Quotes already submitted and existing policies are not affected.", confirmLabel: "Switch off", danger: true }))) return;
     setError(null);
     setSaved(null);
     setBusy(code);

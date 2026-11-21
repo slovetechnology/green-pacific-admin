@@ -12,6 +12,7 @@ import {
 import { AttachmentsPanel } from "../components/AttachmentsPanel";
 import { PlacementBillingTab } from "./BillingPages";
 import { ComplianceTab, CorrespondenceTab, ClausesTab, DocumentsTab, HistoryTab, QuotesTab } from "../components/WorkspaceTabs";
+import { promptDialog } from "@/shared/components/Dialogs";
 import "@/shared/styles/executive.css";
 import "@/shared/styles/reinsurance.css";
 
@@ -117,10 +118,10 @@ export function PlacementWorkspacePage() {
     return run("Line-up saved.", () => api.put(`${base}/lines`, { lines, expected_version: version }));
   }
 
-  function changeStatus(to: string) {
+  async function changeStatus(to: string) {
     let reason: string | null = null;
     if (to === "Declined" || to === "Lapsed") {
-      reason = window.prompt(`Why is this placement ${to.toLowerCase()}?`);
+      reason = await promptDialog({ message: `Why is this placement ${to.toLowerCase()}?`, required: true, multiline: true });
       if (!reason) return;
     }
     run(`Moved to ${to}.`, () => post("/transition", { status: to, reason }));
@@ -197,7 +198,7 @@ export function PlacementWorkspacePage() {
               {pending.requested_by !== mine && can(approvalPermission(pending.action)) && (
                 <>
                   <button type="button" className="btn btn-sm" onClick={() => run(`${pending.action} approved.`, () => api.post(`/api/reinsurance/approvals/${pending.id}/decision`, { approve: true }))}>Approve</button>{" "}
-                  <button type="button" className="btn-secondary btn btn-sm" onClick={() => run("Request rejected.", () => api.post(`/api/reinsurance/approvals/${pending.id}/decision`, { approve: false, note: window.prompt("Reason (optional)") || undefined }))}>Reject</button>
+                  <button type="button" className="btn-secondary btn btn-sm" onClick={async () => { const note = await promptDialog({ title: "Reject", message: "Reason (optional)", multiline: true }); if (note === null) return; void run("Request rejected.", () => api.post(`/api/reinsurance/approvals/${pending.id}/decision`, { approve: false, note: note || undefined })); }}>Reject</button>
                 </>
               )}
               {pending.requested_by === mine && !can("ri.placement.bind") && <span className="muted">Needs another person to approve.</span>}
@@ -301,8 +302,8 @@ export function PlacementWorkspacePage() {
                             ) : bpsText(line?.written_bps)}</td>
                             <td className="ri-num">{line?.status === "Signed" ? bpsText(line.signed_bps) : "—"}</td>
                             <td>{canEdit && ["Invited", "Quoted"].includes(d.status) && (
-                              <button type="button" className="btn-secondary btn btn-sm" onClick={() => {
-                                const reason = window.prompt(`Why has ${d.name} declined${g.layer_no ? ` layer ${g.layer_no}` : ""}?`);
+                              <button type="button" className="btn-secondary btn btn-sm" onClick={async () => {
+                                const reason = await promptDialog({ message: `Why has ${d.name} declined${g.layer_no ? ` layer ${g.layer_no}` : ""}?`, required: true, multiline: true });
                                 if (reason) run("Reinsurer marked as declined.", () => post(`/lines/${d.reinsurer_party_id}/decline`, { reason, layer_id: g.layer_id }));
                               }}>Declined</button>)}</td>
                           </tr>

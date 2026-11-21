@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router";
 import { api } from "@/shared/api/client";
 import { TYPE_LABEL, pb, usePbAccess, type ComponentDetail, type PbVersion } from "../api/policyBank";
 import { Field, Flash, PbLayout, PbStatus, ReasonButton, fmtDate, useAct } from "../components/PbCommon";
+import { confirmDialog, promptDialog } from "@/shared/components/Dialogs";
 
 export interface InsurerOption { id: number; name: string }
 export function useInsurerOptions() {
@@ -65,7 +66,7 @@ function VersionCard({ v, insurerName }: { v: PbVersion; insurerName: (id: numbe
         <div className="pb-row-actions" style={{ marginTop: "0.6rem" }}>
           {editable && can("policy_bank.edit") && <button type="button" className="btn-secondary btn" onClick={() => { setEditing(true); setOpen(true); }}>Edit</button>}
           {editable && can("policy_bank.edit") && <button type="button" className="btn" disabled={step.isPending} onClick={() => step.mutate({ action: "submit" })}>Submit for approval</button>}
-          {editable && can("policy_bank.edit") && <button type="button" className="btn-secondary btn" disabled={del.isPending} onClick={() => { if (window.confirm(`Delete draft v${v.version}?`)) del.mutate(undefined); }}>Delete draft</button>}
+          {editable && can("policy_bank.edit") && <button type="button" className="btn-secondary btn" disabled={del.isPending} onClick={async () => { if (await confirmDialog(`Delete draft v${v.version}?`)) del.mutate(undefined); }}>Delete draft</button>}
           {v.approval_status === "Submitted" && can("policy_wording.approve") && <button type="button" className="btn-secondary btn" onClick={() => step.mutate({ action: "review" })}>Start review</button>}
           {(v.approval_status === "Submitted" || v.approval_status === "UnderReview") && can("policy_wording.approve") && (
             <>
@@ -172,7 +173,7 @@ export function PbWordingDetailPage() {
             {d.conflicts.length === 0 ? <p className="pb-muted">None.</p> : <ul className="pb-list">{d.conflicts.map((x) => <li key={x.id}>{x.message}</li>)}</ul>}
             <div className="pb-row-actions" style={{ marginTop: "1rem" }}>
               {d.component.status === "Active" && can("policy_bank.deactivate") && (
-                <button type="button" className="btn-secondary btn" onClick={() => { const r = window.prompt("Why is this component being deactivated?"); if (r?.trim()) deactivate.mutate(r.trim()); }}>Deactivate</button>
+                <button type="button" className="btn-secondary btn" onClick={async () => { const r = await promptDialog({ message: "Why is this component being deactivated?", required: true, multiline: true }); if (r?.trim()) deactivate.mutate(r.trim()); }}>Deactivate</button>
               )}
               {d.component.status !== "Active" && can("policy_bank.deactivate") && <button type="button" className="btn-secondary btn" onClick={() => reactivate.mutate(undefined)}>Reactivate</button>}
             </div>

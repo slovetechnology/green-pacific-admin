@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { pb, qs, usePbAccess, type Rule } from "../api/policyBank";
 import { Field, Flash, PbLayout, PbStatus, useAct } from "../components/PbCommon";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 const OPS: Record<string, string> = {
   eq: "is", neq: "is not", contains: "includes", not_contains: "does not include", gt: ">", lt: "<", gte: ">=", lte: "<=", exists: "is present", not_exists: "is missing", in: "is one of", not_in: "is not one of",
@@ -61,7 +62,7 @@ export function PbRulesPage() {
     <PbLayout
       title="Rules"
       intro="Rules choose which wordings, limits and required details a policy picks up. They are data, checked against the variable list and the wording codes before they are saved, and a rule needs a second person to go live."
-      actions={<>{can("policy_bank.approve") && (list.data?.rules ?? []).some((x) => x.status === "Draft") && <button type="button" className="btn-secondary btn" disabled={activateAll.isPending} onClick={() => { if (window.confirm("Activate every draft rule that you did not write yourself?")) activateAll.mutate(undefined); }}>Activate all draft rules</button>}{can("policy_bank.create") && <button type="button" className="btn" onClick={() => open(null)}>+ New rule</button>}</>}
+      actions={<>{can("policy_bank.approve") && (list.data?.rules ?? []).some((x) => x.status === "Draft") && <button type="button" className="btn-secondary btn" disabled={activateAll.isPending} onClick={async () => { if (await confirmDialog("Activate every draft rule that you did not write yourself?")) activateAll.mutate(undefined); }}>Activate all draft rules</button>}{can("policy_bank.create") && <button type="button" className="btn" onClick={() => open(null)}>+ New rule</button>}</>}
     >
       <Flash error={save.error ?? act.error ?? validate.error ?? activateAll.error ?? parseError} ok={save.ok ?? act.ok ?? validate.ok ?? activateAll.ok} />
       {form && (

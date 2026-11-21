@@ -5,7 +5,7 @@ import { api, ApiError } from "@/shared/api/client";
 import { RoleGate } from "@/app/guards/RoleGate";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { DataGrid, type DataGridColumn } from "@/shared/components/DataGrid";
-import { confirmAction } from "@/shared/components/ConfirmDialog";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 interface Row {
   id: number;
@@ -47,7 +47,7 @@ export function CoverageMatrixPage() {
   }
 
   async function handleDelete(rowId: number) {
-    if (!confirmAction("Remove this rule?")) return;
+    if (!(await confirmDialog("Remove this rule?"))) return;
     await api.delete(`/api/crm/coverage-matrix/${rowId}`);
     await queryClient.invalidateQueries({ queryKey: ["crm", "coverage-matrix"] });
   }

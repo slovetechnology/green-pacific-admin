@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Run, type SourceRun } from "../api";
 import { useIsAdmin } from "../access";
 import { Empty, ErrorNote, fmtDateTime, Loading, Pill, RunStatus } from "../components/ui";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 const duration = (r: Run) => {
   if (!r.finished_at) return "…";
@@ -40,7 +41,7 @@ export function RunsPage() {
         {isAdmin ? (
           <div className="row gap">
             <button className="btn btn-secondary" disabled={start.isPending || running} onClick={() => start.mutate("collect")}>Collect now</button>
-            <button className="btn" disabled={start.isPending || running} onClick={() => confirm("Collect, then email the digest?") && start.mutate("full")}>
+            <button className="btn" disabled={start.isPending || running} onClick={async () => (await confirmDialog("Collect, then email the digest?")) && start.mutate("full")}>
               Collect and send
             </button>
           </div>

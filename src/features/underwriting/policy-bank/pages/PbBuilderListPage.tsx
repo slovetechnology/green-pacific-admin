@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { engine } from "../api/engine";
 import { Flash, PbLayout, PbStatus, useAct } from "../components/PbCommon";
 import { usePbAccess } from "../api/policyBank";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 export function PbBuilderListPage() {
   const { can } = usePbAccess();
@@ -71,7 +72,7 @@ export function PbBuilderListPage() {
                     <td>
                       <div className="pb-row-actions">
                         <Link className="btn-secondary btn" to={`/policy-bank/builder/${d.id}`}>Open</Link>
-                        {d.status === "Draft" && <button type="button" className="btn-secondary btn" disabled={del.isPending} onClick={() => { if (window.confirm("Delete this draft?")) del.mutate(d.id); }}>Delete</button>}
+                        {d.status === "Draft" && <button type="button" className="btn-secondary btn" disabled={del.isPending} onClick={async () => { if (await confirmDialog("Delete this draft?")) del.mutate(d.id); }}>Delete</button>}
                       </div>
                     </td>
                   </tr>

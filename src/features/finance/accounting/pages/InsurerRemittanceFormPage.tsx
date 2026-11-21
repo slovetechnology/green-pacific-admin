@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
-import { confirmAction } from "@/shared/components/ConfirmDialog";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 interface FormOptions {
   insurers: { id: number; name: string }[];
@@ -105,7 +105,7 @@ export function InsurerRemittanceFormPage() {
   }
 
   async function handleDelete() {
-    if (!confirmAction("Delete this remittance record? This cannot be undone.")) return;
+    if (!(await confirmDialog("Delete this remittance record? This cannot be undone."))) return;
     await api.delete(`/api/insurer-remittances/${remittanceId}`);
     await queryClient.invalidateQueries({ queryKey: ["insurer-remittances"] });
     navigate("/insurer-remittances");

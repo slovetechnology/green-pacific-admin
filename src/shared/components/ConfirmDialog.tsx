@@ -1,6 +1,6 @@
-// A thin wrapper over window.confirm — matches the Flask templates' plain
-// JS confirm() dialogs on destructive actions rather than introducing a
-// custom modal component for a one-line behavior.
-export function confirmAction(message: string): boolean {
-  return window.confirm(message);
+import { confirmDialog } from "./Dialogs";
+
+// Asks the user to confirm an action in the app's own dialog (see Dialogs.tsx). Resolves true when confirmed.
+export function confirmAction(message: string): Promise<boolean> {
+  return confirmDialog(message);
 }

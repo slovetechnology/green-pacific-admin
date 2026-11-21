@@ -9,6 +9,7 @@ import { Tabs, type TabDef } from "@/shared/components/exec/Tabs";
 import { useSubBrokerMeta, type SubBroker } from "../lib/subBrokers";
 import { SplitsTab } from "../components/SplitsTab";
 import { AuditTab, BusinessTab, DocumentsTab, PaymentsTab, StatementTab } from "../components/LedgerTabs";
+import { confirmDialog } from "@/shared/components/Dialogs";
 import "@/shared/styles/executive.css";
 
 interface Totals {
@@ -72,7 +73,7 @@ function ProfileTab({ sb }: { sb: SubBroker }) {
             </select>
             <input aria-label="Reason" placeholder="Reason (required)" value={reason} onChange={(e) => setReason(e.target.value)} style={{ minWidth: "18rem" }} />
             <button type="button" className={status === "Terminated" ? "btn btn-danger" : "btn"} disabled={!status || !reason.trim() || change.isPending}
-              onClick={() => { if (status !== "Terminated" || window.confirm(`Terminate ${sb.name}? This cannot be undone.`)) change.mutate(); }}>
+              onClick={async () => { if (status !== "Terminated" || (await confirmDialog(`Terminate ${sb.name}? This cannot be undone.`))) change.mutate(); }}>
               Apply
             </button>
           </div>

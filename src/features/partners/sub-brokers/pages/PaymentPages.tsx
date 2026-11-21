@@ -6,6 +6,7 @@ import { fmtMoney } from "@/shared/lib/format";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { useSubBrokerMeta, type CommissionLine, type LineTotals, type SubBroker, type SubBrokerPayment } from "../lib/subBrokers";
 import { LinesTable } from "../components/LedgerTabs";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const cents = (n: number) => Math.round(n * 100);
@@ -124,7 +125,7 @@ export function PaymentBatchPage() {
         {totalCents <= 0 && chosen.length > 0 && <div className="flash flash-warning">The selected lines net to {fmtMoney(totalCents / 100)}; select more lines to make a payment.</div>}
         <div className="form-actions">
           <button type="button" className="btn" disabled={!!blocked || totalCents <= 0 || pay.isPending}
-            onClick={() => { setError(null); if (window.confirm(`Pay ${fmtMoney(totalCents / 100)} to ${subBroker.name} (${subBroker.bank_name} ${subBroker.account_number})?`)) pay.mutate(); }}>
+            onClick={async () => { setError(null); if (await confirmDialog(`Pay ${fmtMoney(totalCents / 100)} to ${subBroker.name} (${subBroker.bank_name} ${subBroker.account_number})?`)) pay.mutate(); }}>
             {pay.isPending ? "Recording…" : `Record payment of ${fmtMoney(totalCents / 100)}`}
           </button>
         </div>
@@ -234,7 +235,7 @@ export function PaymentDetailPage() {
           )}
           <div className="form-actions">
             <button type="button" className="btn btn-danger" disabled={!reason.trim() || voidIt.isPending || (reissue && keepSet.size === 0)}
-              onClick={() => { if (window.confirm(`Void payment ${p.reference}?`)) voidIt.mutate(); }}>
+              onClick={async () => { if (await confirmDialog(`Void payment ${p.reference}?`)) voidIt.mutate(); }}>
               {reissue ? "Void and reissue" : "Void payment"}
             </button>
           </div>

@@ -13,6 +13,7 @@ import {
   type StatementDetail,
   type StatementLine,
 } from "../lib/commissionStatements";
+import { promptDialog } from "@/shared/components/Dialogs";
 
 const STATUS_ORDER: LineStatus[] = ["Unmatched", "Ambiguous", "Variance", "Matched", "Ignored"];
 
@@ -52,8 +53,8 @@ export function CommissionStatementDetailPage() {
     .filter((l) => !filter || l.status === filter)
     .sort((a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status) || (a.rowNo ?? 0) - (b.rowNo ?? 0));
 
-  function ignore(line: StatementLine) {
-    const note = window.prompt(`Why ignore ${line.policyNo}? (e.g. "belongs to another broker")`);
+  async function ignore(line: StatementLine) {
+    const note = await promptDialog({ message: `Why ignore ${line.policyNo}? (e.g. "belongs to another broker")`, required: true, multiline: true });
     if (note && note.trim()) void act(`/lines/${line.id}`, { ignore: true, note });
   }
 
@@ -214,12 +215,14 @@ export function CommissionStatementDetailPage() {
           <button
             type="button"
             className="btn-danger btn btn-sm"
-            onClick={() => {
-              const reason = window.prompt(
-                statement.status === "Reconciled"
+            onClick={async () => {
+              const reason = await promptDialog({
+                title: "Void statement",
+                message: statement.status === "Reconciled"
                   ? "Void this reconciled statement? Its commission will no longer count as received. Reason:"
-                  : "Reason for voiding this statement:"
-              );
+                  : "Reason for voiding this statement:",
+                required: true, multiline: true, confirmLabel: "Void",
+              });
               if (reason && reason.trim()) void act("/void", { reason });
             }}
           >

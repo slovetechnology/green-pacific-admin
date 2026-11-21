@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
-import { confirmAction } from "@/shared/components/ConfirmDialog";
+import { confirmDialog } from "@/shared/components/Dialogs";
 
 interface Testimonial {
   id: number;
@@ -108,8 +108,8 @@ export function TestimonialsPage() {
   const togglePublished = (t: Testimonial) =>
     void run(() => api.put(`/api/testimonials-admin/${t.id}`, { is_published: t.is_published ? 0 : 1 }), "Could not save the change.");
 
-  function remove(t: Testimonial) {
-    if (!confirmAction(`Delete the testimonial from ${t.author_name}?`)) return;
+  async function remove(t: Testimonial) {
+    if (!(await confirmDialog(`Delete the testimonial from ${t.author_name}?`))) return;
     void run(() => api.delete(`/api/testimonials-admin/${t.id}`), "Could not delete the testimonial.");
   }
 

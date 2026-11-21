@@ -4,10 +4,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { DataGrid, type DataGridColumn } from "@/shared/components/DataGrid";
-import { confirmAction } from "@/shared/components/ConfirmDialog";
 import { useAuth } from "@/features/platform/auth/AuthContext";
 import { ListSearch } from "@/shared/components/ListSearch";
 import { useRowSearch } from "@/shared/hooks/useRowSearch";
+import { alertDialog, confirmDialog } from "@/shared/components/Dialogs";
 
 type Role = "admin" | "editor" | "viewer" | "agent";
 
@@ -95,7 +95,7 @@ export function UsersPage() {
       await api.post(`/api/users/${userId}/role`, { role: newRole });
       await refetchUsers();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not change role.");
+      void alertDialog(err instanceof Error ? err.message : "Could not change role.");
     }
   }
 
@@ -104,7 +104,7 @@ export function UsersPage() {
       await api.post(`/api/users/${userId}/branch`, { branch_id: newBranchId || null });
       await refetchUsers();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not change branch.");
+      void alertDialog(err instanceof Error ? err.message : "Could not change branch.");
     }
   }
 
@@ -178,12 +178,12 @@ export function UsersPage() {
   }
 
   async function handleDelete(userRow: UserRow) {
-    if (!confirmAction(`Delete user "${userRow.name}"?`)) return;
+    if (!(await confirmDialog(`Delete user "${userRow.name}"?`))) return;
     try {
       await api.post(`/api/users/${userRow.id}/delete`);
       await refetchUsers();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not delete user.");
+      void alertDialog(err instanceof Error ? err.message : "Could not delete user.");
     }
   }
 

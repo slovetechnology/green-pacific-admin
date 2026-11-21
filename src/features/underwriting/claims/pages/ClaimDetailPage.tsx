@@ -4,10 +4,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, apiUpload, ApiError, apiUrl, documentTooLarge } from "@/shared/api/client";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { RoleGate } from "@/app/guards/RoleGate";
-import { confirmAction } from "@/shared/components/ConfirmDialog";
 import { fmtMoney, fmtMoneyShort } from "@/shared/lib/format";
 import { MetricStrip, type Metric } from "@/shared/components/exec/MetricStrip";
 import { Tabs, type TabDef } from "@/shared/components/exec/Tabs";
+import { alertDialog, confirmDialog } from "@/shared/components/Dialogs";
 import "@/shared/styles/executive.css";
 
 interface Claim {
@@ -172,13 +172,13 @@ export function ClaimDetailPage() {
   }
 
   async function handleDelete() {
-    if (!confirmAction("Delete this claim? This cannot be undone.")) return;
+    if (!(await confirmDialog("Delete this claim? This cannot be undone."))) return;
     try {
       await api.delete(`/api/claims/${claimId}`);
       await queryClient.invalidateQueries({ queryKey: ["claims"] });
       navigate("/claims");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not delete claim.");
+      void alertDialog(err instanceof Error ? err.message : "Could not delete claim.");
     }
   }
 
