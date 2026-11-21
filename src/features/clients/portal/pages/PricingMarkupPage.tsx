@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router";
 import { api, ApiError } from "@/shared/api/client";
 import { useAuth } from "@/features/platform/auth/AuthContext";
 import { StatusBadge } from "@/shared/components/StatusBadge";
@@ -120,6 +121,14 @@ export function PricingMarkupPage() {
           <div><div className="k">Paid to the insurer</div><div className="v">{fmtMoney(100_000)}</div></div>
         </div>
         <p className="page-lede" style={{ marginTop: "0.75rem" }}>A change applies to quotes priced from then on; quotes already given keep their price. Switched off or set to 0, insurer prices go to customers unchanged.</p>
+      </div>
+
+      <div className="card">
+        <h2>Insurer products</h2>
+        <p className="page-lede">
+          To stop customers quoting for an insurer&apos;s products (Leadway, emPLE), switch that insurer off on{" "}
+          <Link to="/portal/insurer-products">Insurer Products</Link>.
+        </p>
       </div>
     </div>
   );

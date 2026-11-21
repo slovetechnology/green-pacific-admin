@@ -17,7 +17,7 @@ export function InsurerProductsPage() {
   const { user } = useAuth();
   const canEdit = !!user?.isAdmin;
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["portal-providers"], queryFn: () => api.get<{ data: ProviderSwitches }>("/api/customer-portal-providers") });
+  const { data, isLoading, isError } = useQuery({ queryKey: ["portal-providers"], queryFn: () => api.get<{ data: ProviderSwitches }>("/api/customer-portal-providers") });
   const s = data?.data;
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
@@ -39,6 +39,7 @@ export function InsurerProductsPage() {
     }
   }
 
+  if (isError) return <div className="flash flash-error">The insurer switches could not be loaded. Please refresh the page; if it keeps happening, the server may need updating.</div>;
   if (isLoading || !s) return <p>Loading…</p>;
 
   return (
