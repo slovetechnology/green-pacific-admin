@@ -1,9 +1,11 @@
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { ApiError } from "@/shared/api/client";
+import { RichTextEditor } from "@/shared/components/RichTextEditor";
 import { DEFAULT_ATTACHMENT_RULES, fmtSize, type AttachmentRules } from "../messageTypes";
 
 /**
- * The write box under a conversation (or the body of a new one). Builds a FormData with
+ * The write box under a conversation (or the body of a new one). Staff write in a text editor with formatting
+ * (sent as `body_html`, with the plain text as `body`). Builds a FormData with
  * `body` and `files`, plus `kind` and `email_to` for staff, and hands it to onSend.
  * `children` are extra fields placed above the message (subject, topic, client, ...).
  */
@@ -32,6 +34,9 @@ export function MessageComposer({
   extraFields?: (form: FormData) => string | null;
 }) {
   const [body, setBody] = useState("");
+  const [bodyHtml, setBodyHtml] = useState("");
+  // A new key clears the editor after sending.
+  const [editorKey, setEditorKey] = useState(0);
   const [files, setFiles] = useState<File[]>([]);
   const [kind, setKind] = useState<"message" | "note">("message");
   const [emailTo, setEmailTo] = useState(defaultEmailTo);
@@ -77,6 +82,7 @@ export function MessageComposer({
       return;
     }
     form.append("body", body);
+    if (staff && bodyHtml) form.append("body_html", bodyHtml);
     if (staff) {
       form.append("kind", kind);
       if (!isNote) form.append("email_to", emailTo);
@@ -86,6 +92,8 @@ export function MessageComposer({
     try {
       await onSend(form);
       setBody("");
+      setBodyHtml("");
+      setEditorKey((k) => k + 1);
       setFiles([]);
       setKind("message");
     } catch (err) {
@@ -110,7 +118,21 @@ export function MessageComposer({
       {children}
       <div className="field">
         <label htmlFor="msg-body">{isNote ? "Note (only staff will see this)" : "Message"}</label>
-        <textarea id="msg-body" rows={5} value={body} onChange={(e) => setBody(e.target.value)} placeholder={isNote ? "Write a note for colleagues…" : placeholder} />
+        {staff ? (
+          <RichTextEditor
+            key={editorKey}
+            id="msg-body"
+            className="msg-editor"
+            ariaLabel={isNote ? "Note" : "Message"}
+            placeholder={isNote ? "Write a note for colleagues…" : placeholder}
+            onChange={(html, text) => {
+              setBodyHtml(html);
+              setBody(text);
+            }}
+          />
+        ) : (
+          <textarea id="msg-body" rows={5} value={body} onChange={(e) => setBody(e.target.value)} placeholder={isNote ? "Write a note for colleagues…" : placeholder} />
+        )}
       </div>
       {staff && !isNote && (
         <div className="field">

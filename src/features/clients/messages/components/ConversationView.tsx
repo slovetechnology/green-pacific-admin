@@ -1,3 +1,4 @@
+import DOMPurify from "dompurify";
 import { apiUrl } from "@/shared/api/client";
 import { fmtSize, fmtWhen, type ThreadMessage } from "../messageTypes";
 
@@ -37,7 +38,12 @@ export function ConversationView({
             </div>
             <div className="msg-bubble">
               {m.kind === "note" && <p className="msg-note-flag">Only staff can see this note.</p>}
-              <div className="msg-body">{m.body}</div>
+              {m.body_html ? (
+                // Cleaned by the server when saved; cleaned again here in case of anything older or written elsewhere.
+                <div className="msg-body is-rich" dangerouslySetInnerHTML={{ __html: safeHtml(m.body_html) }} />
+              ) : (
+                <div className="msg-body">{m.body}</div>
+              )}
               {m.attachments.length > 0 && (
                 <ul className="msg-files" aria-label="Attachments">
                   {m.attachments.map((a) => (
@@ -58,3 +64,9 @@ export function ConversationView({
     </ol>
   );
 }
+
+const safeHtml = (html: string) =>
+  DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ["p", "br", "strong", "b", "em", "i", "u", "s", "strike", "ul", "ol", "li", "blockquote", "a", "h2", "h3", "code", "pre", "hr"],
+    ALLOWED_ATTR: ["href", "target", "rel", "start"],
+  });

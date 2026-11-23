@@ -15,6 +15,8 @@ export interface ThreadMessage {
   /** in: from the client; out: from the broker; internal: a staff note. */
   direction: "in" | "out" | "internal";
   body: string;
+  /** The formatted version (cleaned HTML) when it was written in the staff editor; null for plain text. */
+  body_html?: string | null;
   author_name: string | null;
   created_at: string;
   email_to?: string | null;
