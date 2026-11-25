@@ -16,6 +16,8 @@ import "@/shared/styles/executive.css";
 import { ScheduleView } from "../components/schedules/ScheduleView";
 import { REMINDER_LABELS, type PremiumInvoice } from "../lib/premiumInvoices";
 import { alertDialog, confirmDialog } from "@/shared/components/Dialogs";
+import { usePolicyModification } from "@/features/underwriting/endorsement-engine/usePolicyModification";
+import { PolicyLedgerTimeline } from "@/features/underwriting/endorsement-engine/components/PolicyLedgerTimeline";
 
 const SPLIT_TYPES = ["WritingAgent", "Referral", "Agency", "Other"] as const;
 
@@ -100,6 +102,9 @@ interface RiskItem {
   id: number;
   kind: "vehicle" | "property" | "life";
   item_value: number;
+  // DELETED_ENDORSED: removed by an item deletion endorsement; it stays on the schedule.
+  status?: "ACTIVE" | "DELETED_ENDORSED";
+  effective_removal_date?: string | null;
   vehicle_make?: string | null;
   registration_no?: string | null;
   engine_no?: string | null;
@@ -161,7 +166,7 @@ function RiskItemsCard({ items }: { items: RiskItem[] }) {
       : kind === "life"
         ? [["Name of insured person", (i) => i.insured_name || "—"], ["Date of birth", (i) => i.date_of_birth || "—"], ["Annual earning", (i) => (i.annual_earning == null ? "—" : fmtMoney(i.annual_earning))], ["Sum assured", (i) => fmtMoney(i.item_value)], ["NIN", (i) => i.nin || "—"]]
         : [["Category of property", (i) => i.property_category || "—"], ["Description of property", (i) => i.property_description || "—"], ["Sum insured / limit of liability", (i) => fmtMoney(i.item_value)], ["Risk location", (i) => i.risk_location || "—"]];
-  const total = items.reduce((sum, i) => sum + (i.item_value || 0), 0);
+  const total = items.filter((i) => i.status !== "DELETED_ENDORSED").reduce((sum, i) => sum + (i.item_value || 0), 0);
   const heading = kind === "vehicle" ? "motor" : kind === "life" ? "life" : "non-motor";
   return (
     <div className="card">
@@ -176,8 +181,11 @@ function RiskItemsCard({ items }: { items: RiskItem[] }) {
           </thead>
           <tbody>
             {items.map((item, idx) => (
-              <tr key={item.id}>
-                <td>{idx + 1}</td>
+              <tr key={item.id} style={item.status === "DELETED_ENDORSED" ? { opacity: 0.6, textDecoration: "line-through" } : undefined}>
+                <td>
+                  {idx + 1}
+                  {item.status === "DELETED_ENDORSED" && <span className="ee-chip is-crit" style={{ textDecoration: "none", marginLeft: 4 }}>Deleted (endorsed) {item.effective_removal_date}</span>}
+                </td>
                 {cols.map(([label, get]) => <td key={label}>{get(item)}</td>)}
               </tr>
             ))}
@@ -209,6 +217,23 @@ export function TransactionDetailPage() {
     queryFn: () => api.get<TransactionDetailResponse>(`/api/transactions/${txId}`),
   });
 
+  // Posted policies: Edit / Delete open the Modification Reason modal and route to an endorsement or reversal.
+  const policyMod = usePolicyModification({
+    txId: Number(txId),
+    clientId: data?.transaction.client_id ?? 0,
+    items: (data?.riskItems ?? []).map((i) => ({
+      id: i.id,
+      value: i.item_value,
+      removed: i.status === "DELETED_ENDORSED",
+      label: `${i.registration_no || i.vehicle_make || i.property_description || i.property_category || i.insured_name || `Item #${i.id}`} — ${fmtMoney(i.item_value)}`,
+    })),
+    onDirect: (action) => {
+      if (action === "EDIT") navigate(`/transactions/${txId}/edit`);
+      else if (action === "DELETE") void handleDelete();
+    },
+    onShowEndorsements: () => setTab("endorsements"),
+  });
+
   async function handleDelete() {
     if (!(await confirmDialog("Delete this transaction? This cannot be undone."))) return;
     try {
@@ -230,6 +255,7 @@ export function TransactionDetailPage() {
     { id: "commission", label: "Commission splits" },
     ...(parent ? [] : [{ id: "endorsements", label: "Endorsements", count: data.endorsementNotes.length }]),
     ...(parent || !pbAccess.hasAny ? [] : [{ id: "wording", label: "Policy wording" }]),
+    { id: "ledger", label: "Ledger timeline" },
   ];
   const tab = tabs.some((x) => x.id === searchParams.get("tab")) ? (searchParams.get("tab") as string) : "overview";
   function setTab(id: string) {
@@ -281,16 +307,16 @@ export function TransactionDetailPage() {
                   changes, the destination is the same form. */}
               {t.balance_os > 0.01 ? "Record Payment" : "Generate Receipt"}
             </button>
-            <button type="button" className="btn-secondary btn btn-sm" onClick={() => navigate(`/transactions/${txId}/edit`)}>
-              Edit
+            <button type="button" className="btn-secondary btn btn-sm" onClick={() => policyMod.attempt("EDIT")}>
+              {policyMod.lock?.locked ? "Edit / Endorse" : "Edit"}
             </button>
             {!t.parent_transaction_id && (
               <button type="button" className="btn-secondary btn btn-sm" onClick={() => navigate(`/policy-bank/builder/new?transactionId=${txId}`)}>
                 Build policy wording
               </button>
             )}
-            <button type="button" className="btn-danger btn btn-sm" onClick={handleDelete}>
-              Delete
+            <button type="button" className="btn-danger btn btn-sm" onClick={() => policyMod.attempt("DELETE")}>
+              {policyMod.lock?.locked ? "Void / Delete" : "Delete"}
             </button>
           </div>
         </RoleGate>
@@ -303,6 +329,8 @@ export function TransactionDetailPage() {
           only the change the endorsement made. Void it by setting its status to Cancelled.
         </div>
       )}
+
+      {policyMod.ui}
 
       <MetricStrip metrics={metrics} label="Policy financial summary" />
 
@@ -558,6 +586,12 @@ export function TransactionDetailPage() {
       {tab === "wording" && !parent && (
         <div role="tabpanel" id="tx-panel-wording" aria-labelledby="tx-tab-wording" tabIndex={0} className="exec-tabpanel">
           <PolicyWordingPanel transactionId={Number(txId)} />
+        </div>
+      )}
+
+      {tab === "ledger" && (
+        <div role="tabpanel" id="tx-panel-ledger" aria-labelledby="tx-tab-ledger" tabIndex={0} className="exec-tabpanel">
+          <PolicyLedgerTimeline txId={Number(txId)} />
         </div>
       )}
 

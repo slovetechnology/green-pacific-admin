@@ -131,6 +131,7 @@ export default [
     route("expenses/new", "routes/finance/expenses.new.tsx"),
     route("expenses/:expenseId/edit", "routes/finance/expenses.$expenseId.edit.tsx"),
     route("insurer-remittances", "routes/finance/insurer-remittances.tsx"),
+    route("refund-vouchers", "routes/finance/refund-vouchers.tsx"),
     route("insurer-remittances/new", "routes/finance/insurer-remittances.new.tsx"),
     route("insurer-remittances/:remittanceId/edit", "routes/finance/insurer-remittances.$remittanceId.edit.tsx"),
     route("faq", "routes/platform/faq.tsx"),

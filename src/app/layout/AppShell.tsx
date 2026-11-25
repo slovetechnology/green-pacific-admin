@@ -57,6 +57,7 @@ const POLICIES_MONEY_ITEMS = [
   { to: "/broking-slips", label: "Broking Slips" },
   { to: "/renewals", label: "Renewals" },
   { to: "/insurer-remittances", label: "Insurer Remittances" },
+  { to: "/refund-vouchers", label: "Refunds & Endorsement Approvals" },
   { to: "/expenses", label: "Expenses" },
   { to: "/financials", label: "Financials Performance" },
   { to: "/chart-of-accounts", label: "Chart of Accounts" },
@@ -430,7 +431,7 @@ const NAV_AREAS = [
     key: "finance",
     label: "Financials & Accounting",
     items: [
-      ...pick("/receipts", "/premium-invoices", "/commission-statements", "/insurer-remittances", "/expenses", "/financials", "/chart-of-accounts"),
+      ...pick("/receipts", "/premium-invoices", "/commission-statements", "/insurer-remittances", "/refund-vouchers", "/expenses", "/financials", "/chart-of-accounts"),
       { to: "/premium-statements", label: "Premium Statements" },
       { to: "/premium-statements/exceptions", label: "Reconciliation Exceptions" },
       { to: "/accounting-periods", label: "Accounting Periods" },

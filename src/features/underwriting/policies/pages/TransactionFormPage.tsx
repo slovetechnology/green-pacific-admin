@@ -400,7 +400,13 @@ export function TransactionFormPage() {
       {!isEdit && opts && (
         <p className="page-lede">Next credit note number: <strong>{opts.nextCreditNotePreview}</strong></p>
       )}
-      {error && <div className="flash flash-error">{error}</div>}
+      {isEdit && searchParams.get("mode") === "non-financial" && (
+        <div className="flash flash-info">
+          This policy's notes are posted. Only non-financial details (narration, subject matter, policy or slip number) can be
+          changed here; premium, commission, dates, insurer, client and the schedule are locked and change through an endorsement or reversal.
+        </div>
+      )}
+      {error && <div className="flash flash-error">{error}{isEdit && /posted/i.test(error) && <> <a href={`/transactions/${txId}`}>Back to the policy</a> to choose an endorsement or reversal.</>}</div>}
       {complianceBlock && (
         <div className="flash flash-error">
           <strong>This policy can't be saved: it breaks a compliance rule.</strong>

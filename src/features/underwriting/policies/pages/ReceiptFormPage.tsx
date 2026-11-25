@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
 import { fmtMoney } from "@/shared/lib/format";
+import { OverpaymentAllocationModal } from "@/features/underwriting/endorsement-engine/components/OverpaymentAllocationModal";
+import "@/shared/styles/endorsement-engine.css";
 
 interface FormOptions {
   clients: { id: number; name: string }[];
@@ -45,6 +47,10 @@ export function ReceiptFormPage() {
   const [otherCharges, setOtherCharges] = useState("");
   const [narration, setNarration] = useState("");
   const [allocations, setAllocations] = useState<AllocationRow[]>([{ transaction_id: "", amount: "" }]);
+  // What the client actually transferred. Anything above the allocations + VAT + charges is an overpayment, held as
+  // client credit (Client Unallocated Credit ledger, trust account) and settled in the allocation modal.
+  const [amountReceived, setAmountReceived] = useState("");
+  const [overpayment, setOverpayment] = useState<{ receiptId: number; creditEntryId: number; clientId: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -73,7 +79,11 @@ export function ReceiptFormPage() {
 
   const openTransactions = openTxQuery.data?.transactions || [];
   const premiumTotal = allocations.reduce((s, a) => s + (Number(a.amount) || 0), 0);
-  const totalAmount = premiumTotal + (Number(vatLevies) || 0) + (Number(otherCharges) || 0);
+  const allocatedAmount = premiumTotal + (Number(vatLevies) || 0) + (Number(otherCharges) || 0);
+  const received = amountReceived === "" ? allocatedAmount : Number(amountReceived) || 0;
+  const excess = Math.max(Math.round((received - allocatedAmount) * 100) / 100, 0);
+  const shortfall = amountReceived !== "" && received < allocatedAmount - 0.005;
+  const totalAmount = allocatedAmount + excess;
 
   function updateAllocation(index: number, field: keyof AllocationRow, value: string) {
     setAllocations((rows) => rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
@@ -96,8 +106,12 @@ export function ReceiptFormPage() {
       return;
     }
     const validRows = allocations.filter((r) => r.transaction_id && Number(r.amount) > 0);
-    if (validRows.length === 0) {
+    if (validRows.length === 0 && excess <= 0) {
       setError("Add at least one policy allocation with a positive amount.");
+      return;
+    }
+    if (shortfall) {
+      setError("The amount received is less than the allocations. Reduce the allocations to what was received.");
       return;
     }
     if (totalAmount <= 0) {
@@ -107,7 +121,7 @@ export function ReceiptFormPage() {
 
     setSubmitting(true);
     try {
-      const result = await api.post<{ receiptId: number }>("/api/receipts", {
+      const result = await api.post<{ receiptId: number; overpayment: { creditEntryId: number; amountCents: number } | null }>("/api/receipts", {
         client_id: clientId,
         receipt_date: receiptDate,
         payment_method: paymentMethod,
@@ -116,9 +130,15 @@ export function ReceiptFormPage() {
         other_charges: otherCharges,
         narration,
         allocations: validRows.map((r) => ({ transaction_id: r.transaction_id, amount: r.amount })),
+        unallocated_amount: excess,
       });
       await queryClient.invalidateQueries({ queryKey: ["receipts"] });
       await queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      if (result.overpayment) {
+        // Ask straight away what to do with the excess; the receipt page opens when the modal closes.
+        setOverpayment({ receiptId: result.receiptId, creditEntryId: result.overpayment.creditEntryId, clientId: Number(clientId) });
+        return;
+      }
       // Entered from a transaction's edit form (the "select Paid, record a
       // receipt, come back to save" workflow) — go back there instead of the
       // receipt detail page; the invalidated ["transactions", txId] query
@@ -283,6 +303,27 @@ export function ReceiptFormPage() {
                     <td></td>
                   </tr>
                   <tr>
+                    <td>
+                      <label htmlFor="amount_received"><strong>Amount actually received</strong></label>
+                      <div className="text-muted">Leave blank if it equals the allocations. More than that is an overpayment.</div>
+                    </td>
+                    <td className="num">
+                      <input id="amount_received" type="number" step="0.01" min="0" value={amountReceived}
+                        placeholder={allocatedAmount.toFixed(2)} onChange={(e) => setAmountReceived(e.target.value)} />
+                    </td>
+                    <td></td>
+                  </tr>
+                  {excess > 0 && (
+                    <tr>
+                      <td><strong>Overpayment → client credit</strong> <span className="ee-chip is-info">Client Unallocated Credit (trust)</span></td>
+                      <td className="num"><strong>{fmtMoney(excess)}</strong></td>
+                      <td></td>
+                    </tr>
+                  )}
+                  {shortfall && (
+                    <tr><td colSpan={3} className="flash flash-error">Received is less than the allocations.</td></tr>
+                  )}
+                  <tr>
                     <td><strong>Total Amount Received</strong></td>
                     <td className="num"><strong>{fmtMoney(totalAmount)}</strong></td>
                     <td></td>
@@ -302,6 +343,14 @@ export function ReceiptFormPage() {
           </div>
         </form>
       </div>
+      {overpayment && (
+        <OverpaymentAllocationModal
+          open
+          clientId={overpayment.clientId}
+          sourceEntryId={overpayment.creditEntryId}
+          onClose={() => navigate(returnTo || `/receipts/${overpayment.receiptId}`)}
+        />
+      )}
     </div>
   );
 }

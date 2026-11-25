@@ -10,6 +10,7 @@ export function Modal({
   children,
   footer,
   wide = false,
+  xwide = false,
 }: {
   open: boolean;
   title: string;
@@ -17,6 +18,8 @@ export function Modal({
   children: ReactNode;
   footer?: ReactNode;
   wide?: boolean;
+  /** Extra wide: wizards with a side-by-side preview. */
+  xwide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
 
@@ -30,7 +33,7 @@ export function Modal({
   return (
     <dialog
       ref={ref}
-      className={wide ? "pl-modal is-wide" : "pl-modal"}
+      className={xwide ? "pl-modal is-xwide" : wide ? "pl-modal is-wide" : "pl-modal"}
       aria-label={title}
       onClose={onClose}
       onClick={(e) => {
