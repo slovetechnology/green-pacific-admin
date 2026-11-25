@@ -1,0 +1,58 @@
+/* Risk & Portfolio Analytics (client page tab, risk report, risk profile, gap rules). */
+
+.badge-critical { color: #fff; background: var(--status-critical); }
+.badge-compliant { color: var(--status-good); background: color-mix(in srgb, var(--status-good) 14%, transparent); }
+.badge-non-compliant { color: var(--status-critical); background: color-mix(in srgb, var(--status-critical) 14%, transparent); }
+.badge-not-applicable, .badge-unknown { color: var(--text-muted); background: var(--surface-2); }
+.badge-tone-good { color: var(--status-good); background: color-mix(in srgb, var(--status-good) 14%, transparent); }
+.badge-tone-warn { color: var(--status-warning); background: color-mix(in srgb, var(--status-warning) 18%, transparent); }
+.badge-tone-crit { color: var(--status-critical); background: color-mix(in srgb, var(--status-critical) 14%, transparent); }
+.badge-tone-neutral { color: var(--text-muted); background: var(--surface-2); }
+
+.risk-toolbar { display: flex; align-items: flex-end; gap: 0.6rem; flex-wrap: wrap; }
+.risk-toolbar .exec-filter { max-width: 13rem; }
+.risk-toolbar-actions { display: flex; gap: 0.5rem; margin-left: auto; flex-wrap: wrap; }
+
+.risk-gaps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.risk-gap { padding: 0.7rem var(--exec-pad); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.3rem; }
+.risk-gap:first-child { border-top: 0; }
+.risk-gap.is-critical { border-left: 3px solid var(--status-critical); }
+.risk-gap-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.risk-gap-head strong { font-size: var(--text-sm); }
+.risk-gap p { margin: 0; font-size: var(--text-sm); color: var(--text-secondary); }
+.risk-gap .risk-gap-ref { font-size: var(--text-xs); color: var(--text-muted); }
+.risk-gap-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.2rem; }
+.risk-empty { margin: 0; padding: var(--exec-pad); color: var(--text-muted); font-size: var(--text-sm); }
+
+.risk-checklist { list-style: none; margin: 0; padding: 0; }
+.risk-checklist li { display: flex; gap: 0.5rem; align-items: baseline; padding: 0.35rem var(--exec-pad); border-top: 1px solid var(--border); font-size: var(--text-sm); }
+.risk-checklist li:first-child { border-top: 0; }
+.risk-checklist .badge { flex: 0 0 auto; }
+.risk-checklist span.risk-check-detail { color: var(--text-muted); font-size: var(--text-xs); }
+
+.risk-sort { all: unset; cursor: pointer; font: inherit; color: inherit; display: inline-flex; gap: 0.25rem; align-items: center; }
+.risk-sort:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.risk-table-foot { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.5rem var(--exec-pad); font-size: var(--text-xs); color: var(--text-muted); border-top: 1px solid var(--border); }
+.risk-table tr.is-total td { font-weight: 700; background: var(--surface-2); }
+
+.risk-facts { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: var(--exec-pad); }
+.risk-fact { display: inline-flex; gap: 0.35rem; align-items: center; padding: 0.15rem 0.5rem; border: 1px solid var(--border); border-radius: var(--exec-radius); font-size: var(--text-xs); background: var(--surface-1); }
+.risk-fact em { font-style: normal; color: var(--text-muted); }
+
+/* Report preview */
+.risk-report { display: flex; flex-direction: column; gap: 1.1rem; font-size: var(--text-sm); }
+.risk-report h3 { margin: 0 0 0.4rem; font-size: 0.95rem; color: var(--brand); }
+.risk-report-meta { color: var(--text-muted); font-size: var(--text-xs); }
+.risk-report ul.risk-summary { margin: 0; padding-left: 1.1rem; }
+.risk-report ul.risk-summary li { margin: 0.2rem 0; }
+.risk-report .risk-note { color: var(--text-muted); font-size: var(--text-xs); margin: 0.3rem 0 0; }
+.risk-score { font-size: 1.6rem; font-weight: 800; }
+
+/* Risk profile form */
+.risk-profile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 0.8rem 1rem; }
+.risk-profile-grid .field small { color: var(--text-muted); font-size: var(--text-xs); }
+
+/* Rules admin */
+.risk-rule-json { font-family: var(--font-mono, monospace); font-size: var(--text-xs); width: 100%; min-height: 6rem; }
+.risk-table td.risk-term { white-space: nowrap; }
+.risk-table td.risk-term .exec-dl-note { white-space: normal; }

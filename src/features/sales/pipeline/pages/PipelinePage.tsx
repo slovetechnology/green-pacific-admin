@@ -211,6 +211,7 @@ function StaffPipeline({ openCreate }: { openCreate: boolean }) {
         open={creating}
         options={options}
         initialClientId={params.get("client_id") ?? undefined}
+        initialClass={params.get("class_of_business") ?? undefined}
         onClose={() => { setCreating(false); if (openCreate) navigate("/deals", { replace: true }); }}
         onCreated={refresh}
       />

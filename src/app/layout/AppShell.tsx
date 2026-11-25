@@ -385,6 +385,7 @@ const POOL: NavGroupItem[] = [
   ...REPORT_ITEMS,
   { to: "/clients", label: "Clients" },
   { to: "/insurers", label: "Insurers" },
+  { to: "/loss-adjusters", label: "Loss Adjusters" },
   { to: "/renewal-rules", label: "Renewal Rules" },
 ];
 const pick = (...paths: string[]): NavGroupItem[] =>
@@ -425,7 +426,7 @@ const NAV_AREAS = [
     label: "Policies & Claims",
     items: pick("/transactions", "/renewals", "/renewal-rules", "/broking-slips", "/claims", "/clause-library", "/policy-templates"),
   },
-  { key: "partners", label: "Business Partners", items: pick("/insurers", "/producers", "/sub-brokers") },
+  { key: "partners", label: "Business Partners", items: pick("/insurers", "/loss-adjusters", "/producers", "/sub-brokers") },
   {
     key: "finance",
     label: "Financials & Accounting",
@@ -463,6 +464,7 @@ const ADMIN_ITEMS = [
   { to: "/team", label: "Our Team" },
   { to: "/testimonials", label: "Testimonials" },
   { to: "/audit-log", label: "Audit Log" },
+  { to: "/coverage-gap-rules", label: "Coverage Gap Rules" },
 ];
 
 // Path -> breadcrumb trail, built once from the nav config above so page titles
@@ -477,6 +479,7 @@ for (const tab of GL_TABS) BREADCRUMB_TRAILS[tab.to] = ["General Ledger", tab.la
 BREADCRUMB_TRAILS["/client-messages/new"] = ["Client Messages", "New message"];
 BREADCRUMB_TRAILS["/client-messages/email-setup"] = ["Client Messages", "Email replies setup"];
 BREADCRUMB_TRAILS["/users"] = ["Admin", "Users"];
+BREADCRUMB_TRAILS["/coverage-gap-rules"] = ["Admin", "Coverage Gap Rules"];
 BREADCRUMB_TRAILS["/branches"] = ["Admin", "Branches"];
 BREADCRUMB_TRAILS["/document-types"] = ["Admin", "Document Types"];
 BREADCRUMB_TRAILS["/team"] = ["Admin", "Our Team"];

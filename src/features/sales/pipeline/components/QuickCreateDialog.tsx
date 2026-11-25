@@ -20,30 +20,33 @@ export function QuickCreateDialog({
   open,
   options,
   initialClientId,
+  initialClass,
   onClose,
   onCreated,
 }: {
   open: boolean;
   options: FormOptions | undefined;
   initialClientId?: string;
+  // Class of business to start with, e.g. from a client's coverage gaps.
+  initialClass?: string;
   onClose: () => void;
   onCreated: () => void;
 }) {
   return (
     <Modal open={open} title="New deal" onClose={onClose}>
-      {options && <QuickCreateForm options={options} initialClientId={initialClientId} onClose={onClose} onCreated={onCreated} />}
+      {options && <QuickCreateForm options={options} initialClientId={initialClientId} initialClass={initialClass} onClose={onClose} onCreated={onCreated} />}
     </Modal>
   );
 }
 
-function QuickCreateForm({ options, initialClientId, onClose, onCreated }: { options: FormOptions; initialClientId?: string; onClose: () => void; onCreated: () => void }) {
+function QuickCreateForm({ options, initialClientId, initialClass, onClose, onCreated }: { options: FormOptions; initialClientId?: string; initialClass?: string; onClose: () => void; onCreated: () => void }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [prospect, setProspect] = useState(false);
   const [clientId, setClientId] = useState(initialClientId ?? "");
   const [clientFilter, setClientFilter] = useState("");
   const [newName, setNewName] = useState("");
-  const [classOfBusiness, setClassOfBusiness] = useState("");
+  const [classOfBusiness, setClassOfBusiness] = useState(initialClass ?? "");
   const [ownerId, setOwnerId] = useState(user ? String(user.id) : "");
   const [source, setSource] = useState("");
   const [premium, setPremium] = useState("");
