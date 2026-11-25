@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { CLIENT_KYC_FILTERS } from "@/features/sales/kyc/kycStanding";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/shared/api/client";
@@ -15,6 +16,8 @@ interface ClientRow {
   state: string | null;
   n_tx: number;
   balance_os: number;
+  kyc_status: string | null;
+  kyc_expires_on: string | null;
 }
 
 interface ClientsListResponse {
@@ -116,12 +119,13 @@ export function ClientsListPage() {
   const navigate = useNavigate();
   const page = Number(searchParams.get("page") || "1");
   const q = searchParams.get("q") || "";
+  const kyc = searchParams.get("kyc") || "";
   const selectedId = Number(searchParams.get("selected")) || null;
   const [qInput, setQInput] = useState(q);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["clients", q, page],
-    queryFn: () => api.get<ClientsListResponse>(`/api/clients?q=${encodeURIComponent(q)}&page=${page}`),
+    queryKey: ["clients", q, kyc, page],
+    queryFn: () => api.get<ClientsListResponse>(`/api/clients?q=${encodeURIComponent(q)}&kyc=${encodeURIComponent(kyc)}&page=${page}`),
   });
   const rows = data?.clients ?? [];
   const selected = rows.find((c) => c.id === selectedId) ?? null;
@@ -152,7 +156,7 @@ export function ClientsListPage() {
         <div>
           <span className="exec-eyebrow">Clients & Sales</span>
           <h1>Clients</h1>
-          <p className="exec-dl-note">{data ? `${data.total.toLocaleString()} ${q ? "matching " : ""}client${data.total === 1 ? "" : "s"}` : "Loading clients…"}</p>
+          <p className="exec-dl-note">{data ? `${data.total.toLocaleString()} ${q || kyc ? "matching " : ""}client${data.total === 1 ? "" : "s"}` : "Loading clients…"}</p>
         </div>
         <RoleGate need="write">
           <div className="exec-header-actions">
@@ -177,6 +181,12 @@ export function ClientsListPage() {
         <button type="submit" className="btn btn-secondary btn-sm">
           Search
         </button>
+        <label className="exec-search">
+          <span>KYC</span>
+          <select value={kyc} onChange={(e) => update({ kyc: e.target.value, page: "1", selected: "" })}>
+            {CLIENT_KYC_FILTERS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+          </select>
+        </label>
         {q && (
           <button
             type="button"
@@ -208,6 +218,9 @@ export function ClientsListPage() {
                     <span>
                       {c.n_tx} {c.n_tx === 1 ? "policy" : "policies"}
                     </span>
+                    {c.kyc_status && !["Verified", "Not Started"].includes(c.kyc_status) && (
+                      <span className={`badge badge-${c.kyc_status.toLowerCase().replace(/\s+/g, "-")}`}>KYC {c.kyc_status.toLowerCase()}</span>
+                    )}
                   </span>
                   {c.client_ref && <span className="client-card-ref">{c.client_ref}</span>}
                 </button>

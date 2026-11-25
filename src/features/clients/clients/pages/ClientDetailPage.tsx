@@ -4,6 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, apiUpload, ApiError, apiUrl, documentTooLarge } from "@/shared/api/client";
 import { fmtMoney, fmtMoneyShort } from "@/shared/lib/format";
 import { StatusBadge } from "@/shared/components/StatusBadge";
+import { KycStandingChip, KycStandingNotice } from "@/features/sales/kyc/components/KycStanding";
+import type { KycStanding } from "@/features/sales/kyc/kycStanding";
 import { RoleGate } from "@/app/guards/RoleGate";
 import { MetricStrip, type Metric } from "@/shared/components/exec/MetricStrip";
 import { Tabs, type TabDef } from "@/shared/components/exec/Tabs";
@@ -86,6 +88,8 @@ interface ClientDetailResponse {
   nMessages: number;
   accountManager: { id: number; username: string } | null;
   branch: { id: number; name: string } | null;
+  /** The client's KYC standing; an expired one blocks binding deals. */
+  kyc: KycStanding;
   contactRoleTypes: string[];
   docTypes: string[];
 }
@@ -235,6 +239,7 @@ export function ClientDetailPage() {
         <div className="exec-meta">
           <span>{[client.city, client.state].filter(Boolean).join(", ") || "No location"}</span>
           <span>{accountManager?.username ? `Manager: ${accountManager.username}` : "No account manager"}</span>
+          {data.kyc && <KycStandingChip kyc={data.kyc} />}
         </div>
         <div className="exec-header-actions">
           <Link className="btn-secondary btn btn-sm" to={`/reports/loss-experience?client_id=${clientId}`}>
@@ -270,6 +275,7 @@ export function ClientDetailPage() {
 
       {tab === "overview" && (
       <div role="tabpanel" id="client-panel-overview" aria-labelledby="client-tab-overview" tabIndex={0} className="exec-tabpanel">
+      {data.kyc && <KycStandingNotice kyc={data.kyc} clientId={client.id} />}
       <div className="card">
         <h2>Client info</h2>
         <div className="detail-grid">

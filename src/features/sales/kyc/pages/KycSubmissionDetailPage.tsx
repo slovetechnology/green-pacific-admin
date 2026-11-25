@@ -5,6 +5,9 @@ import { api, ApiError, apiUrl } from "@/shared/api/client";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { RoleGate } from "@/app/guards/RoleGate";
 import { fmtMoney } from "@/shared/lib/format";
+import { KycDocumentsCard, type KycDocumentsView } from "../components/KycDocumentsCard";
+import { KycStandingChip } from "../components/KycStanding";
+import type { KycStanding } from "../kycStanding";
 
 interface Kyc {
   id: number;
@@ -65,6 +68,7 @@ interface Kyc {
   risk_level: string | null;
   risk_factors: { code: string; weight: number; description: string }[] | null;
   tier: number | null;
+  next_review_at: string | null;
 }
 
 interface Client {
@@ -88,6 +92,9 @@ interface Response {
   statuses: string[];
   events: KycEvent[];
   customer: { id: number; name: string; email: string; phone: string | null; client_id: number | null } | null;
+  documents: KycDocumentsView;
+  /** The linked client's KYC standing (expiry included), or null when no client is linked. */
+  clientKyc: KycStanding | null;
 }
 
 const EVENT_LABELS: Record<string, string> = {
@@ -95,6 +102,7 @@ const EVENT_LABELS: Record<string, string> = {
   resubmitted: "Resubmitted after a rejection",
   verified: "Verified",
   rejected: "Rejected",
+  document_uploaded: "Document uploaded",
   reopened: "Set back to pending",
   note: "Note",
 };
@@ -126,8 +134,10 @@ export function KycSubmissionDetailPage() {
 
   if (isLoading) return <p>Loading…</p>;
   if (!data) return <p>KYC submission not found.</p>;
-  const { kyc, linkedClient, clients, events = [], customer } = data;
+  const { kyc, linkedClient, clients, events = [], customer, documents, clientKyc } = data;
   const reviewStatus = status || kyc.status;
+  // Verifying is refused by the server until the checklist is complete; say so before the user tries.
+  const blockedVerify = reviewStatus === "Verified" && kyc.status !== "Verified" && documents.outstanding.length > 0;
   const name = [kyc.title, kyc.first_name, kyc.other_names, kyc.surname].filter(Boolean).join(" ");
 
   async function handleReview(e: FormEvent) {
@@ -173,6 +183,8 @@ export function KycSubmissionDetailPage() {
             label="Linked Client"
             value={linkedClient ? <Link to={`/clients/${linkedClient.id}`}>{linkedClient.name} →</Link> : null}
           />
+          {clientKyc && <Field label="Client's KYC standing" value={<KycStandingChip kyc={clientKyc} />} />}
+          {kyc.status === "Verified" && kyc.next_review_at && <Field label="Next periodic review" value={kyc.next_review_at} />}
         </div>
       </div>
 
@@ -201,13 +213,10 @@ export function KycSubmissionDetailPage() {
           <Field label="ID Issue Date" value={kyc.id_issue_date} />
           <Field label="ID Expiry Date" value={kyc.id_expiry_date} />
         </div>
-        <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.75rem" }}>
-          {kyc.id_document_path && <a className="btn-secondary btn-sm" href={apiUrl(`/api/kyc/${kycId}/file/id_document`)}>ID Document</a>}
-          {kyc.passport_photo_path && <a className="btn-secondary btn-sm" href={apiUrl(`/api/kyc/${kycId}/file/passport_photo`)}>Passport Photo</a>}
-          {kyc.proof_of_address_path && <a className="btn-secondary btn-sm" href={apiUrl(`/api/kyc/${kycId}/file/proof_of_address_doc`)}>Proof of Address</a>}
-          {kyc.signature_path && <a className="btn-secondary btn-sm" href={apiUrl(`/api/kyc/${kycId}/file/signature`)}>Signature</a>}
-        </div>
+        <p className="page-lede" style={{ marginTop: "0.75rem" }}>The uploaded files are in the document checklist below.</p>
       </div>
+
+      <KycDocumentsCard kycId={kyc.id} kycStatus={kyc.status} view={documents} />
 
       <div className="card">
         <h2>C. Contact &amp; Address</h2>
@@ -310,6 +319,11 @@ export function KycSubmissionDetailPage() {
         <div className="card">
           <h2>Review</h2>
           {error && <div className="flash flash-error">{error}</div>}
+          {blockedVerify && (
+            <div className="flash flash-warning" role="status">
+              This KYC can't be verified yet. Verify these documents first: {documents.outstanding.map((o) => o.label).join("; ")}.
+            </div>
+          )}
           {kyc.risk_level === "high" && (
             <div className="flash flash-warning">
               This applicant is high-risk. Only an admin can approve them.
@@ -366,7 +380,7 @@ export function KycSubmissionDetailPage() {
               </div>
             </div>
             <div className="form-actions">
-              <button type="submit" className="btn" disabled={submitting}>
+              <button type="submit" className="btn" disabled={submitting || blockedVerify}>
                 {submitting ? "Saving…" : "Save review"}
               </button>
             </div>
