@@ -6,15 +6,16 @@ import { engine, type LockSummary, type Workflow } from "../api";
 // whose credit/debit notes are posted: direct editing is locked, the user states why (structured category plus
 // mandatory remarks, written to the audit log) and is routed to the workflow that changes the policy properly.
 
-export type AttemptedAction = "EDIT" | "CANCEL_COVER" | "DELETE_ITEM" | "VOID" | "DELETE";
+export type AttemptedAction = "EDIT" | "CANCEL_COVER" | "DELETE_ITEM" | "VOID" | "DELETE" | "WRITE_OFF";
 
 const ACTION_LABEL: Record<AttemptedAction, string> = {
-  EDIT: "Edit", CANCEL_COVER: "Cancel cover", DELETE_ITEM: "Delete item", VOID: "Void", DELETE: "Delete",
+  EDIT: "Edit", CANCEL_COVER: "Cancel cover", DELETE_ITEM: "Delete item", VOID: "Void", DELETE: "Delete", WRITE_OFF: "Write off (non-payment)",
 };
 
 // The category each attempted action most likely means, pre-selected.
 const DEFAULT_FOR: Record<AttemptedAction, Workflow> = {
   EDIT: "ENDORSEMENT", CANCEL_COVER: "MTC_CANCELLATION", DELETE_ITEM: "ITEM_REMOVAL", VOID: "ERROR_REVERSAL", DELETE: "ERROR_REVERSAL",
+  WRITE_OFF: "NON_PAYMENT_WRITE_OFF",
 };
 
 const HINT: Record<Workflow, string> = {
@@ -24,6 +25,7 @@ const HINT: Record<Workflow, string> = {
   OVERPAYMENT_REFUND: "Refund, carry forward or apply the client's credit (overpayments and return premiums).",
   ENDORSEMENT: "Additional premium, sum insured or subject-matter change, booked as an endorsement note.",
   NON_FINANCIAL_EDIT: "Narration, subject matter, policy or slip number. Premium, dates, insurer and schedule stay locked.",
+  NON_PAYMENT_WRITE_OFF: "No Premium, No Cover: the unpaid premium is cancelled from inception and the policy closed. Supervisor-approved; only premium already paid to the insurer is recovered or written off as a bad debt.",
 };
 
 export function ModificationReasonModal({
@@ -39,7 +41,11 @@ export function ModificationReasonModal({
   onRoute: (category: Workflow, remarks: string) => void;
 }) {
   const options = (Object.keys(lock.categories) as Workflow[]).filter((w) => lock.allowedWorkflows.includes(w) && (w !== "ITEM_REMOVAL" || activeItems > 1));
-  const preferred = options.includes(DEFAULT_FOR[action]) ? DEFAULT_FOR[action] : options[0];
+  // Cancelling an expired, unpaid policy means writing it off (a mid-term cancellation can't date after expiry).
+  const wanted = action === "CANCEL_COVER" && options.includes("NON_PAYMENT_WRITE_OFF") ? "NON_PAYMENT_WRITE_OFF" : DEFAULT_FOR[action];
+  const preferred = options.includes(wanted) ? wanted : options[0];
+  // The likely choice is listed first.
+  const ordered = preferred ? [preferred, ...options.filter((w) => w !== preferred)] : options;
   const [category, setCategory] = useState<Workflow | undefined>(preferred);
   const [remarks, setRemarks] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +94,7 @@ export function ModificationReasonModal({
       ) : (
         <fieldset className="ee-reasons" style={{ border: 0, padding: 0, margin: 0 }}>
           <legend className="ee-sr-only">Modification category</legend>
-          {options.map((w) => (
+          {ordered.map((w) => (
             <label key={w} className={`ee-reason${category === w ? " is-selected" : ""}`}>
               <input type="radio" name="ee-category" value={w} checked={category === w} onChange={() => setCategory(w)} />
               <span>

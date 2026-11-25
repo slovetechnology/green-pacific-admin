@@ -6,7 +6,9 @@ import { fmtMoney } from "@/shared/lib/format";
 export const BASE = "/api/endorsement-engine";
 export const fmtKobo = (kobo: number | null | undefined) => fmtMoney((Number(kobo) || 0) / 100);
 
-export type Workflow = "MTC_CANCELLATION" | "ITEM_REMOVAL" | "ERROR_REVERSAL" | "OVERPAYMENT_REFUND" | "ENDORSEMENT" | "NON_FINANCIAL_EDIT";
+export type Workflow =
+  | "MTC_CANCELLATION" | "ITEM_REMOVAL" | "ERROR_REVERSAL" | "OVERPAYMENT_REFUND" | "ENDORSEMENT" | "NON_FINANCIAL_EDIT" | "NON_PAYMENT_WRITE_OFF";
+export type WriteOffRoute = "NONE" | "RECOVER_FROM_INSURER" | "BROKER_ABSORBS";
 export type NoteType = "DEBIT_NOTE" | "CREDIT_NOTE" | "RP_DEBIT_NOTE" | "RP_CREDIT_NOTE" | "CONTRA_REVERSAL";
 
 export interface AccountingNote {
@@ -53,6 +55,9 @@ export interface EndorsementRow {
   created_at: string;
   approved_by_name?: string | null;
   settlement_route?: string | null;
+  write_off_route?: WriteOffRoute | null;
+  bad_debt_cents?: number;
+  trust_topup_reference?: string | null;
   policy_id?: number;
   "policy.policy_no"?: string | null;
   "policy.credit_note_no"?: string | null;
@@ -69,6 +74,8 @@ export interface LockSummary {
   pendingApprovals: EndorsementRow[];
   coverCancelled: EndorsementRow | null;
   allowedWorkflows: Workflow[];
+  /** Whether the policy can be written off for non-payment now (expired, posted, something outstanding). */
+  writeOff: { eligible: boolean; reason: string | null; outstandingCents?: number; pending?: string };
   categories: Record<Workflow, string>;
   reasonCodes: Record<string, string[]>;
 }
@@ -124,6 +131,38 @@ export interface Preview {
   };
 }
 
+export interface WriteOffCalc {
+  basis: "WRITE_OFF";
+  policyPremium: number;
+  policyBrokerage: number;
+  premiumPaid: number;
+  netRemitted: number;
+  commissionRatio: number;
+  outstanding: number;
+  grossRp: number;
+  clawback: number;
+  netRp: number;
+  offset: number;
+  earned: number;
+  insurerExposure: number;
+  route: WriteOffRoute;
+  badDebt: number;
+  recoverable: number;
+}
+
+export interface WriteOffPreview {
+  endorsementType: "NON_PAYMENT_WRITE_OFF";
+  policy: Preview["policy"] & { premium_due: number; premium_paid: number; balance_os: number; billing_mode: string; debit_note_no: string | null };
+  calc: WriteOffCalc;
+  remittanceStatus: "UNREMITTED" | "REMITTED";
+  claims: LockSummary["claims"];
+  routeRequired: boolean;
+  documents: {
+    rpDebitNote: { title: string; to: string; parent: string; gross: number; commission: number; net: number; amountDue: number };
+    rpCreditNote: { title: string; to: string; parent: string; gross: number; amountDue: number; offsetAgainstOutstanding: number };
+  };
+}
+
 export interface EndorsementDetail extends EndorsementRow {
   calc: Calc | null;
   notes: AccountingNote[];
@@ -148,6 +187,9 @@ export interface TimelineEvent {
   approvedBy?: string | null;
   journal?: string | null;
   link?: string | null;
+  writeOffRoute?: WriteOffRoute | null;
+  badDebtCents?: number;
+  trustTopupReference?: string | null;
 }
 
 export interface CreditEntry {
@@ -199,8 +241,10 @@ export const engine = {
   preview: (txId: number | string, body: Record<string, unknown>) => api.post<Preview>(`${BASE}/transactions/${txId}/endorsements/preview`, body),
   apply: (txId: number | string, body: Record<string, unknown>) => api.post<EndorsementDetail>(`${BASE}/transactions/${txId}/endorsements`, body),
   requestReversal: (txId: number | string, body: Record<string, unknown>) => api.post<EndorsementDetail>(`${BASE}/transactions/${txId}/reversal-requests`, body),
+  previewWriteOff: (txId: number | string, body: { route?: WriteOffRoute }) => api.post<WriteOffPreview>(`${BASE}/transactions/${txId}/write-offs/preview`, body),
+  requestWriteOff: (txId: number | string, body: { route?: WriteOffRoute; remarks: string }) => api.post<EndorsementDetail>(`${BASE}/transactions/${txId}/write-offs`, body),
   endorsements: (status?: string) => api.get<{ endorsements: EndorsementRow[] }>(`${BASE}/endorsements${status ? `?status=${status}` : ""}`),
-  approve: (id: number) => api.post<EndorsementDetail>(`${BASE}/endorsements/${id}/approve`),
+  approve: (id: number, body?: { trust_topup_reference?: string }) => api.post<EndorsementDetail>(`${BASE}/endorsements/${id}/approve`, body),
   reject: (id: number, reason: string) => api.post<EndorsementDetail>(`${BASE}/endorsements/${id}/reject`, { reason }),
   openRpDebitNotes: () => api.get<{ notes: (AccountingNote & { insurer_name: string; client_name: string; settlement_target_cents: number })[] }>(`${BASE}/notes/open-rp-debit-notes`),
   insurerRefund: (noteId: number, body: Record<string, unknown>) => api.post(`${BASE}/notes/${noteId}/insurer-refunds`, body),
@@ -235,6 +279,13 @@ export const WORKFLOW_LABEL: Record<Workflow, string> = {
   OVERPAYMENT_REFUND: "Overpayment / client refund",
   ENDORSEMENT: "Endorsement",
   NON_FINANCIAL_EDIT: "Non-financial edit",
+  NON_PAYMENT_WRITE_OFF: "Write-off for non-payment",
+};
+
+export const WRITE_OFF_ROUTE_LABEL: Record<WriteOffRoute, string> = {
+  NONE: "Nothing paid to the insurer: cancel only",
+  RECOVER_FROM_INSURER: "Recover from the insurer",
+  BROKER_ABSORBS: "Broker absorbs (bad debt)",
 };
 
 export const NOTE_LABEL: Record<NoteType, string> = {

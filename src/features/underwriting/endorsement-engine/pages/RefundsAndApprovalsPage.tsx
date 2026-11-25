@@ -9,11 +9,12 @@ import { useAuth } from "@/features/platform/auth/AuthContext";
 import { alertDialog, confirmDialog, promptDialog } from "@/shared/components/Dialogs";
 import "@/shared/styles/executive.css";
 import "@/shared/styles/endorsement-engine.css";
-import { engine, fmtKobo, humanize, WORKFLOW_LABEL, type Refund } from "../api";
+import { engine, fmtKobo, humanize, WORKFLOW_LABEL, WRITE_OFF_ROUTE_LABEL, type EndorsementRow, type Refund } from "../api";
+import { approvedMessage, approvePending, rejectPending, showError } from "../approvals";
 import { OverpaymentAllocationModal } from "../components/OverpaymentAllocationModal";
 
 // Scenario 5 and the supervisors' queue: refund vouchers (approve -> pay from client trust / operating bank ->
-// reconcile to the bank statement), error reversals waiting for a checker, return-premium debit notes the insurers
+// reconcile to the bank statement), error reversals and non-payment write-offs waiting for a checker, return-premium debit notes the insurers
 // still have to refund, client credit lookup and pre-funding, and the tax reversibility settings.
 
 const TONE: Record<string, string> = { PENDING_APPROVAL: "is-warn", APPROVED: "is-info", PAID: "is-ok", RECONCILED: "is-ok", CANCELLED: "is-crit" };
@@ -132,19 +133,22 @@ function ApprovalsTab() {
   const { user } = useAuth();
   const { data, isLoading } = useQuery({ queryKey: ["engine", "endorsements", "PENDING_APPROVAL"], queryFn: () => engine.endorsements("PENDING_APPROVAL") });
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["engine"] });
-  async function approve(id: number) {
-    if (!(await confirmDialog("Approve this reversal? The notes are contra-reversed and the policy voided."))) return;
+  async function approve(row: EndorsementRow) {
     try {
-      const r = await engine.approve(id);
+      const r = await approvePending(row);
+      if (!r) return;
       await refresh();
-      void alertDialog({ title: "Reversal posted", message: r.cloneId ? `Corrected draft created: policy #${r.cloneId}.` : r.cloneError ? `Draft copy failed: ${r.cloneError}` : "Done." });
+      void alertDialog(approvedMessage(row, r));
     } catch (err) {
-      void alertDialog(err instanceof Error ? err.message : "Could not approve.");
+      showError(err, "Could not approve.");
     }
   }
-  async function reject(id: number) {
-    const reason = await promptDialog({ message: "Why reject this reversal?", required: true, multiline: true });
-    if (reason) await run(() => engine.reject(id, reason), refresh);
+  async function reject(row: EndorsementRow) {
+    try {
+      if (await rejectPending(row)) await refresh();
+    } catch (err) {
+      showError(err, "Could not reject.");
+    }
   }
   return (
     <div className="card">
@@ -157,7 +161,17 @@ function ApprovalsTab() {
               {data.endorsements.map((e) => (
                 <tr key={e.id}>
                   <td>{e.endorsement_number}</td>
-                  <td>{WORKFLOW_LABEL[e.endorsement_type]}</td>
+                  <td>
+                    {WORKFLOW_LABEL[e.endorsement_type]}
+                    {e.endorsement_type === "NON_PAYMENT_WRITE_OFF" && e.write_off_route && (
+                      <div>
+                        <span className={`ee-chip ${e.write_off_route === "BROKER_ABSORBS" ? "is-crit" : e.write_off_route === "RECOVER_FROM_INSURER" ? "is-warn" : "is-ok"}`}>
+                          {WRITE_OFF_ROUTE_LABEL[e.write_off_route]}
+                        </span>
+                        {Number(e.bad_debt_cents) > 0 && <div className="text-muted">Bad debt {fmtKobo(e.bad_debt_cents)}</div>}
+                      </div>
+                    )}
+                  </td>
                   <td><Link to={`/transactions/${e.policy_id}`}>{e["policy.policy_no"] || e["policy.credit_note_no"] || `#${e.policy_id}`}</Link></td>
                   <td className="num">{fmtKobo(e.gross_rp)}</td>
                   <td>{humanize(e.reason_code || "")}: {e.audit_notes}</td>
@@ -165,8 +179,8 @@ function ApprovalsTab() {
                   <td>
                     {user?.isAdmin && user.username !== e.created_by ? (
                       <span className="ee-inline">
-                        <button type="button" className="btn btn-sm" onClick={() => approve(e.id)}>Approve</button>
-                        <button type="button" className="btn-danger btn btn-sm" onClick={() => reject(e.id)}>Reject</button>
+                        <button type="button" className="btn btn-sm" onClick={() => approve(e)}>Approve</button>
+                        <button type="button" className="btn-danger btn btn-sm" onClick={() => reject(e)}>Reject</button>
                       </span>
                     ) : <span className="text-muted">{user?.username === e.created_by ? "You raised it" : "Admin only"}</span>}
                   </td>
@@ -321,7 +335,7 @@ export function RefundsAndApprovalsPage() {
   const [params, setParams] = useSearchParams();
   const tabs: TabDef[] = [
     { id: "refunds", label: "Refund vouchers" },
-    { id: "approvals", label: "Reversal approvals" },
+    { id: "approvals", label: "Reversal & write-off approvals" },
     { id: "insurer", label: "Insurer RP refunds due" },
     { id: "credit", label: "Client credit" },
     { id: "settings", label: "Taxes & short-rate" },

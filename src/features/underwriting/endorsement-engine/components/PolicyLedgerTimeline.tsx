@@ -10,7 +10,18 @@ const TONE: Record<string, string> = {
   Cancelled: "is-crit", CANCELLED: "is-crit", PREFUNDED: "is-info",
 };
 
+// How a non-payment write-off settled the premium already paid to the insurer.
+function writeOffNote(e: TimelineEvent): string | null {
+  if (!e.writeOffRoute) return null;
+  if (e.writeOffRoute === "BROKER_ABSORBS") {
+    return `Bad debt ${fmtKobo(e.badDebtCents)} written off${e.trustTopupReference ? `; trust topped up from operating (${e.trustTopupReference})` : ""}. `;
+  }
+  if (e.writeOffRoute === "RECOVER_FROM_INSURER") return "Premium already paid to the insurer is being recovered on the RP debit note. ";
+  return "Nothing was paid to the insurer for the unpaid premium, so nothing was lost. ";
+}
+
 function Event({ e }: { e: TimelineEvent }) {
+  const writeOff = writeOffNote(e);
   return (
     <li className={`k-${e.kind}`}>
       <div className="ee-t-head">
@@ -21,9 +32,10 @@ function Event({ e }: { e: TimelineEvent }) {
         {e.remittanceStatus && e.kind === "note" && e.party === "INSURER" && <span className="ee-chip">{e.remittanceStatus}</span>}
         {e.amountCents !== undefined && <span className="ee-t-amount">{fmtKobo(e.amountCents)}</span>}
       </div>
-      {(e.parentRef || e.detail || e.journal || e.by) && (
+      {(e.parentRef || e.detail || e.journal || e.by || writeOff) && (
         <div className="ee-t-detail">
           {e.parentRef && <>Amends {e.parentRef}. </>}
+          {writeOff}
           {e.detail}
           {e.by && <> · by {e.by}{e.approvedBy && e.approvedBy !== e.by ? `, approved by ${e.approvedBy}` : ""}</>}
           {e.journal && <> · GL {e.journal}</>}

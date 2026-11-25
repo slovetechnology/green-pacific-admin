@@ -3,9 +3,11 @@ import { Link, useNavigate } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RoleGate } from "@/app/guards/RoleGate";
 import { useAuth } from "@/features/platform/auth/AuthContext";
-import { alertDialog, confirmDialog, promptDialog } from "@/shared/components/Dialogs";
+import { alertDialog, confirmDialog } from "@/shared/components/Dialogs";
 import "@/shared/styles/endorsement-engine.css";
-import { engine, fmtKobo, WORKFLOW_LABEL, type EndorsementDetail, type Workflow } from "./api";
+import { engine, fmtKobo, WORKFLOW_LABEL, type EndorsementDetail, type EndorsementRow, type Workflow } from "./api";
+import { approvedMessage, approvePending, rejectPending, showError } from "./approvals";
+import { WriteOffRequestModal } from "./components/WriteOffRequestModal";
 import { ModificationReasonModal, type AttemptedAction } from "./components/ModificationReasonModal";
 import { ReturnPremiumWizard } from "./components/ReturnPremiumWizard";
 import { ReversalRequestModal } from "./components/ReversalRequestModal";
@@ -69,26 +71,19 @@ export function usePolicyModification({
     }
   }
 
-  async function decide(id: number, approve: boolean) {
+  async function decide(row: EndorsementRow, approve: boolean) {
     try {
-      if (approve) {
-        if (!(await confirmDialog("Approve this reversal? The notes are contra-reversed and the policy voided."))) return;
-        const r = await engine.approve(id);
-        await refreshAll();
-        if (r.cloneId) {
-          void alertDialog({ title: "Reversal posted", message: `A corrected draft copy was opened as policy #${r.cloneId}. Fix the mistake there and post its notes.` });
-          navigate(`/transactions/${r.cloneId}/edit`);
-        } else {
-          void alertDialog({ title: "Reversal posted", message: r.cloneError ? `The corrected draft could not be created: ${r.cloneError}` : "Done." });
-        }
-      } else {
-        const reason = await promptDialog({ message: "Why reject this reversal?", required: true, multiline: true });
-        if (!reason) return;
-        await engine.reject(id, reason);
-        await refreshAll();
+      if (!approve) {
+        if (await rejectPending(row)) await refreshAll();
+        return;
       }
+      const r = await approvePending(row);
+      if (!r) return;
+      await refreshAll();
+      void alertDialog(approvedMessage(row, r));
+      if (r.cloneId) navigate(`/transactions/${r.cloneId}/edit`);
     } catch (err) {
-      void alertDialog(err instanceof Error ? err.message : "Could not record the decision.");
+      showError(err, "Could not record the decision.");
     }
   }
 
@@ -99,7 +94,15 @@ export function usePolicyModification({
       {lock.coverCancelled ? (
         <div className="ee-banner is-cancelled" role="status">
           <strong>{WORKFLOW_LABEL[lock.coverCancelled.endorsement_type]}</strong>
-          <span>{lock.coverCancelled.endorsement_number} effective {lock.coverCancelled.effective_date} · return premium {fmtKobo(lock.coverCancelled.gross_rp)}</span>
+          {lock.coverCancelled.endorsement_type === "NON_PAYMENT_WRITE_OFF" ? (
+            <span>
+              {lock.coverCancelled.endorsement_number} · unpaid premium {fmtKobo(lock.coverCancelled.gross_rp)} cancelled from inception
+              {Number(lock.coverCancelled.bad_debt_cents) > 0 && <> · bad debt {fmtKobo(lock.coverCancelled.bad_debt_cents)}</>}
+              {lock.coverCancelled.write_off_route === "RECOVER_FROM_INSURER" && <> · premium paid to the insurer to be recovered</>}
+            </span>
+          ) : (
+            <span>{lock.coverCancelled.endorsement_number} effective {lock.coverCancelled.effective_date} · return premium {fmtKobo(lock.coverCancelled.gross_rp)}</span>
+          )}
         </div>
       ) : lock.locked ? (
         <div className="ee-banner" role="status">
@@ -121,6 +124,10 @@ export function usePolicyModification({
                 <button type="button" className="btn-secondary btn btn-sm" onClick={() => attempt("VOID")}>Void (entry in error)</button>
               </>
             )}
+            {!lock.isEndorsementNote && lock.allowedWorkflows.includes("NON_PAYMENT_WRITE_OFF") && (
+              <button type="button" className="btn-secondary btn btn-sm" onClick={() => attempt("WRITE_OFF")}
+                title={`Cover expired with ${fmtKobo(lock.writeOff.outstandingCents)} unpaid`}>Write off (non-payment)</button>
+            )}
             <button type="button" className="btn-secondary btn btn-sm" onClick={() => setRoute({ category: "OVERPAYMENT_REFUND", remarks: "" })}>Client credit</button>
           </RoleGate>
         </div>
@@ -140,8 +147,8 @@ export function usePolicyModification({
           <span className="ee-spacer" />
           {user?.isAdmin && user.username !== p.created_by ? (
             <>
-              <button type="button" className="btn btn-sm" onClick={() => decide(p.id, true)}>Approve</button>
-              <button type="button" className="btn-danger btn btn-sm" onClick={() => decide(p.id, false)}>Reject</button>
+              <button type="button" className="btn btn-sm" onClick={() => decide(p, true)}>Approve</button>
+              <button type="button" className="btn-danger btn btn-sm" onClick={() => decide(p, false)}>Reject</button>
             </>
           ) : <span className="muted">A different supervisor must approve. <Link to="/refund-vouchers?tab=approvals">Approvals queue</Link></span>}
         </div>
@@ -157,6 +164,10 @@ export function usePolicyModification({
       {route?.category === "ERROR_REVERSAL" && (
         <ReversalRequestModal open txId={txId} lock={lock} initialRemarks={route.remarks} onClose={() => setRoute(null)}
           onDone={(r) => done(r, "Reversal requested")} />
+      )}
+      {route?.category === "NON_PAYMENT_WRITE_OFF" && (
+        <WriteOffRequestModal open txId={txId} initialRemarks={route.remarks} onClose={() => setRoute(null)}
+          onDone={(r) => done(r, "Write-off requested")} />
       )}
       {route?.category === "OVERPAYMENT_REFUND" && (
         <OverpaymentAllocationModal open clientId={clientId} onClose={() => setRoute(null)} onDone={() => void refreshAll()} />
