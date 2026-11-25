@@ -9,12 +9,12 @@ export async function approvePending(row: EndorsementRow): Promise<EndorsementDe
     if (!(await confirmDialog("Approve this reversal? The notes are contra-reversed and the policy voided."))) return null;
     return await engine.approve(row.id);
   }
-  const amount = fmtKobo(row.gross_rp);
-  const badDebt = fmtKobo(row.bad_debt_cents);
-  if (row.write_off_route === "BROKER_ABSORBS") {
+  const what = writeOffSummary(row);
+  if (Number(row.bad_debt_cents) > 0) {
+    const badDebt = fmtKobo(row.bad_debt_cents);
     const reference = await promptDialog({
-      title: "Approve write-off: broker absorbs the bad debt",
-      message: `The unpaid ${amount} is cancelled from inception, and the ${badDebt} already paid to the insurer is written off as the broker's bad debt. `
+      title: "Approve write-off: the broker bears a bad debt",
+      message: `${what} The broker's bad debt is ${badDebt}. `
         + `First move ${badDebt} from the operating account into the client premium trust account, then enter that transfer's reference.`,
       label: "Trust top-up transfer reference",
       required: true,
@@ -23,11 +23,20 @@ export async function approvePending(row: EndorsementRow): Promise<EndorsementDe
     if (!reference) return null;
     return await engine.approve(row.id, { trust_topup_reference: reference.trim() });
   }
-  const message = row.write_off_route === "RECOVER_FROM_INSURER"
-    ? `The unpaid ${amount} is cancelled from inception and the policy closed. The premium already paid to the insurer goes on the "Insurer RP refunds due" list to recover.`
-    : `The unpaid ${amount} is cancelled from inception and the policy closed. Nothing was paid to the insurer for it, so nothing posts to the ledger.`;
+  const message = `${what} ${row.write_off_route === "RECOVER_FROM_INSURER"
+    ? "The premium already paid to the insurer goes on the \"Insurer RP refunds due\" list to recover."
+    : "Nothing is lost by the broker, so nothing posts to the ledger."}`;
   if (!(await confirmDialog({ title: "Approve write-off for non-payment?", message, confirmLabel: "Approve and post" }))) return null;
   return await engine.approve(row.id);
+}
+
+/** One-line account of a write-off: how far the cover ran, what is cancelled, and any shortfall. */
+export function writeOffSummary(row: EndorsementRow): string {
+  const shortfall = Number(row.shortfall_cents) || 0;
+  const cover = row.time_on_risk_basis === "ON_RISK" ? `The insurer kept the cover on to ${row.cover_end_date}.` : `The cover ran only as far as the payments: to ${row.cover_end_date}.`;
+  const unpaid = `The unpaid ${fmtKobo(row.gross_rp)} is written off and the policy closed.`;
+  if (!shortfall) return `${cover} ${unpaid}`;
+  return `${cover} ${unpaid} Of it, ${fmtKobo(shortfall)} was earned by the insurer: ${row.shortfall_route === "BROKER_BEARS" ? "the broker pays the insurer its net share" : "the insurer bears it"}.`;
 }
 
 /** Rejects after asking why. Returns true when rejected. */

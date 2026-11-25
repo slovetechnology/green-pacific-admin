@@ -9,7 +9,7 @@ import { useAuth } from "@/features/platform/auth/AuthContext";
 import { alertDialog, confirmDialog, promptDialog } from "@/shared/components/Dialogs";
 import "@/shared/styles/executive.css";
 import "@/shared/styles/endorsement-engine.css";
-import { engine, fmtKobo, humanize, WORKFLOW_LABEL, WRITE_OFF_ROUTE_LABEL, type EndorsementRow, type Refund } from "../api";
+import { engine, fmtKobo, humanize, SHORTFALL_ROUTE_LABEL, WORKFLOW_LABEL, WRITE_OFF_ROUTE_LABEL, type EndorsementRow, type Refund } from "../api";
 import { approvedMessage, approvePending, rejectPending, showError } from "../approvals";
 import { OverpaymentAllocationModal } from "../components/OverpaymentAllocationModal";
 
@@ -163,12 +163,18 @@ function ApprovalsTab() {
                   <td>{e.endorsement_number}</td>
                   <td>
                     {WORKFLOW_LABEL[e.endorsement_type]}
-                    {e.endorsement_type === "NON_PAYMENT_WRITE_OFF" && e.write_off_route && (
-                      <div>
-                        <span className={`ee-chip ${e.write_off_route === "BROKER_ABSORBS" ? "is-crit" : e.write_off_route === "RECOVER_FROM_INSURER" ? "is-warn" : "is-ok"}`}>
-                          {WRITE_OFF_ROUTE_LABEL[e.write_off_route]}
-                        </span>
-                        {Number(e.bad_debt_cents) > 0 && <div className="text-muted">Bad debt {fmtKobo(e.bad_debt_cents)}</div>}
+                    {e.endorsement_type === "NON_PAYMENT_WRITE_OFF" && (
+                      <div className="ee-inline" style={{ marginTop: "0.25rem" }}>
+                        <span className="ee-chip">{e.time_on_risk_basis === "ON_RISK" ? `On risk to ${e.cover_end_date}` : `Paid to ${e.cover_end_date}`}</span>
+                        {Number(e.shortfall_cents) > 0 && e.shortfall_route && (
+                          <span className={`ee-chip ${e.shortfall_route === "BROKER_BEARS" ? "is-crit" : "is-ok"}`}>
+                            Shortfall {fmtKobo(e.shortfall_cents)}: {SHORTFALL_ROUTE_LABEL[e.shortfall_route].toLowerCase()}
+                          </span>
+                        )}
+                        {e.write_off_route && e.write_off_route !== "NONE" && (
+                          <span className={`ee-chip ${e.write_off_route === "BROKER_ABSORBS" ? "is-crit" : "is-warn"}`}>{WRITE_OFF_ROUTE_LABEL[e.write_off_route]}</span>
+                        )}
+                        {Number(e.bad_debt_cents) > 0 && <span className="text-muted">Bad debt {fmtKobo(e.bad_debt_cents)}</span>}
                       </div>
                     )}
                   </td>

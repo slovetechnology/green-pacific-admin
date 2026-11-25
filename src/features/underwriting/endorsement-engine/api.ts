@@ -9,6 +9,8 @@ export const fmtKobo = (kobo: number | null | undefined) => fmtMoney((Number(kob
 export type Workflow =
   | "MTC_CANCELLATION" | "ITEM_REMOVAL" | "ERROR_REVERSAL" | "OVERPAYMENT_REFUND" | "ENDORSEMENT" | "NON_FINANCIAL_EDIT" | "NON_PAYMENT_WRITE_OFF";
 export type WriteOffRoute = "NONE" | "RECOVER_FROM_INSURER" | "BROKER_ABSORBS";
+export type TimeOnRisk = "PAID_TO" | "ON_RISK";
+export type ShortfallRoute = "INSURER_BEARS" | "BROKER_BEARS";
 export type NoteType = "DEBIT_NOTE" | "CREDIT_NOTE" | "RP_DEBIT_NOTE" | "RP_CREDIT_NOTE" | "CONTRA_REVERSAL";
 
 export interface AccountingNote {
@@ -58,6 +60,10 @@ export interface EndorsementRow {
   write_off_route?: WriteOffRoute | null;
   bad_debt_cents?: number;
   trust_topup_reference?: string | null;
+  time_on_risk_basis?: TimeOnRisk | null;
+  cover_end_date?: string | null;
+  shortfall_route?: ShortfallRoute | null;
+  shortfall_cents?: number;
   policy_id?: number;
   "policy.policy_no"?: string | null;
   "policy.credit_note_no"?: string | null;
@@ -143,11 +149,33 @@ export interface WriteOffCalc {
   clawback: number;
   netRp: number;
   offset: number;
+  timeOnRisk: TimeOnRisk;
+  earnedBasis: "PRO_RATA" | "SHORT_RATE" | null;
+  policyDays: number;
+  daysOnRisk: number;
+  retainedBps: number | null;
   earned: number;
+  cancelled: number;
+  shortfall: number;
+  shortfallRoute: ShortfallRoute | null;
+  shortfallNet: number;
+  shortfallToRemit: number;
+  insurerRp: { gross: number; clawback: number; net: number };
   insurerExposure: number;
   route: WriteOffRoute;
+  exposureBadDebt: number;
   badDebt: number;
   recoverable: number;
+}
+
+/** What the maker chooses on a write-off (the preview takes the same). */
+export interface WriteOffChoices {
+  time_on_risk?: TimeOnRisk;
+  cover_end_date?: string;
+  earned_basis?: "PRO_RATA" | "SHORT_RATE";
+  short_rate_retained_pct?: string;
+  shortfall_route?: ShortfallRoute;
+  route?: WriteOffRoute;
 }
 
 export interface WriteOffPreview {
@@ -155,8 +183,11 @@ export interface WriteOffPreview {
   policy: Preview["policy"] & { premium_due: number; premium_paid: number; balance_os: number; billing_mode: string; debit_note_no: string | null };
   calc: WriteOffCalc;
   remittanceStatus: "UNREMITTED" | "REMITTED";
-  claims: LockSummary["claims"];
+  claims: LockSummary["claims"] & { inCover: { claim_no: string; status: string; date_of_loss: string | null }[] };
+  coverEndDate: string;
+  shortRate: { months: number; source: string } | null;
   routeRequired: boolean;
+  shortfallRouteRequired: boolean;
   documents: {
     rpDebitNote: { title: string; to: string; parent: string; gross: number; commission: number; net: number; amountDue: number };
     rpCreditNote: { title: string; to: string; parent: string; gross: number; amountDue: number; offsetAgainstOutstanding: number };
@@ -190,6 +221,10 @@ export interface TimelineEvent {
   writeOffRoute?: WriteOffRoute | null;
   badDebtCents?: number;
   trustTopupReference?: string | null;
+  timeOnRisk?: TimeOnRisk | null;
+  coverEndDate?: string | null;
+  shortfallCents?: number;
+  shortfallRoute?: ShortfallRoute | null;
 }
 
 export interface CreditEntry {
@@ -241,8 +276,8 @@ export const engine = {
   preview: (txId: number | string, body: Record<string, unknown>) => api.post<Preview>(`${BASE}/transactions/${txId}/endorsements/preview`, body),
   apply: (txId: number | string, body: Record<string, unknown>) => api.post<EndorsementDetail>(`${BASE}/transactions/${txId}/endorsements`, body),
   requestReversal: (txId: number | string, body: Record<string, unknown>) => api.post<EndorsementDetail>(`${BASE}/transactions/${txId}/reversal-requests`, body),
-  previewWriteOff: (txId: number | string, body: { route?: WriteOffRoute }) => api.post<WriteOffPreview>(`${BASE}/transactions/${txId}/write-offs/preview`, body),
-  requestWriteOff: (txId: number | string, body: { route?: WriteOffRoute; remarks: string }) => api.post<EndorsementDetail>(`${BASE}/transactions/${txId}/write-offs`, body),
+  previewWriteOff: (txId: number | string, body: WriteOffChoices) => api.post<WriteOffPreview>(`${BASE}/transactions/${txId}/write-offs/preview`, body),
+  requestWriteOff: (txId: number | string, body: WriteOffChoices & { remarks: string }) => api.post<EndorsementDetail>(`${BASE}/transactions/${txId}/write-offs`, body),
   endorsements: (status?: string) => api.get<{ endorsements: EndorsementRow[] }>(`${BASE}/endorsements${status ? `?status=${status}` : ""}`),
   approve: (id: number, body?: { trust_topup_reference?: string }) => api.post<EndorsementDetail>(`${BASE}/endorsements/${id}/approve`, body),
   reject: (id: number, reason: string) => api.post<EndorsementDetail>(`${BASE}/endorsements/${id}/reject`, { reason }),
@@ -286,6 +321,11 @@ export const WRITE_OFF_ROUTE_LABEL: Record<WriteOffRoute, string> = {
   NONE: "Nothing paid to the insurer: cancel only",
   RECOVER_FROM_INSURER: "Recover from the insurer",
   BROKER_ABSORBS: "Broker absorbs (bad debt)",
+};
+
+export const SHORTFALL_ROUTE_LABEL: Record<ShortfallRoute, string> = {
+  INSURER_BEARS: "Insurer bears the shortfall",
+  BROKER_BEARS: "Broker pays the insurer (bad debt)",
 };
 
 export const NOTE_LABEL: Record<NoteType, string> = {

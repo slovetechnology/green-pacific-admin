@@ -25,7 +25,7 @@ const HINT: Record<Workflow, string> = {
   OVERPAYMENT_REFUND: "Refund, carry forward or apply the client's credit (overpayments and return premiums).",
   ENDORSEMENT: "Additional premium, sum insured or subject-matter change, booked as an endorsement note.",
   NON_FINANCIAL_EDIT: "Narration, subject matter, policy or slip number. Premium, dates, insurer and schedule stay locked.",
-  NON_PAYMENT_WRITE_OFF: "No Premium, No Cover: the unpaid premium is cancelled from inception and the policy closed. Supervisor-approved; only premium already paid to the insurer is recovered or written off as a bad debt.",
+  NON_PAYMENT_WRITE_OFF: "Nothing paid, or part paid with the balance unpaid at expiry. The unpaid premium is cancelled from the date the payments ran out (No Premium, No Cover), or, if the insurer kept the cover on, the earned shortfall is borne by the insurer or the broker. Supervisor-approved.",
 };
 
 export function ModificationReasonModal({

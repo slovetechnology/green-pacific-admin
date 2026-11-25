@@ -96,7 +96,9 @@ export function usePolicyModification({
           <strong>{WORKFLOW_LABEL[lock.coverCancelled.endorsement_type]}</strong>
           {lock.coverCancelled.endorsement_type === "NON_PAYMENT_WRITE_OFF" ? (
             <span>
-              {lock.coverCancelled.endorsement_number} · unpaid premium {fmtKobo(lock.coverCancelled.gross_rp)} cancelled from inception
+              {lock.coverCancelled.endorsement_number} · unpaid premium {fmtKobo(lock.coverCancelled.gross_rp)} written off
+              {lock.coverCancelled.time_on_risk_basis === "ON_RISK" ? <> · insurer on risk to {lock.coverCancelled.cover_end_date}</> : <> · cover paid to {lock.coverCancelled.cover_end_date}</>}
+              {Number(lock.coverCancelled.shortfall_cents) > 0 && <> · shortfall {fmtKobo(lock.coverCancelled.shortfall_cents)} {lock.coverCancelled.shortfall_route === "BROKER_BEARS" ? "paid by the broker" : "borne by the insurer"}</>}
               {Number(lock.coverCancelled.bad_debt_cents) > 0 && <> · bad debt {fmtKobo(lock.coverCancelled.bad_debt_cents)}</>}
               {lock.coverCancelled.write_off_route === "RECOVER_FROM_INSURER" && <> · premium paid to the insurer to be recovered</>}
             </span>

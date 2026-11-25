@@ -13,11 +13,12 @@ const TONE: Record<string, string> = {
 // How a non-payment write-off settled the premium already paid to the insurer.
 function writeOffNote(e: TimelineEvent): string | null {
   if (!e.writeOffRoute) return null;
-  if (e.writeOffRoute === "BROKER_ABSORBS") {
-    return `Bad debt ${fmtKobo(e.badDebtCents)} written off${e.trustTopupReference ? `; trust topped up from operating (${e.trustTopupReference})` : ""}. `;
-  }
-  if (e.writeOffRoute === "RECOVER_FROM_INSURER") return "Premium already paid to the insurer is being recovered on the RP debit note. ";
-  return "Nothing was paid to the insurer for the unpaid premium, so nothing was lost. ";
+  const parts = [e.timeOnRisk === "ON_RISK" ? `Insurer on risk to ${e.coverEndDate}.` : `Cover paid to ${e.coverEndDate}.`];
+  if (e.shortfallCents) parts.push(`Shortfall ${fmtKobo(e.shortfallCents)} ${e.shortfallRoute === "BROKER_BEARS" ? "paid to the insurer by the broker" : "borne by the insurer"}.`);
+  if (e.writeOffRoute === "RECOVER_FROM_INSURER") parts.push("Premium already paid to the insurer is being recovered on the RP debit note.");
+  if (e.badDebtCents) parts.push(`Bad debt ${fmtKobo(e.badDebtCents)}${e.trustTopupReference ? `; trust topped up from operating (${e.trustTopupReference})` : ""}.`);
+  if (!e.shortfallCents && !e.badDebtCents && e.writeOffRoute === "NONE") parts.push("Nothing was lost by the broker.");
+  return `${parts.join(" ")} `;
 }
 
 function Event({ e }: { e: TimelineEvent }) {
