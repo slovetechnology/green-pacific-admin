@@ -62,6 +62,8 @@ interface FormValues {
   // Motor third-party property damage limit (a liability limit, not the
   // vehicle value); statutory minimums are compliance rules on the backend.
   tppd_limit: string;
+  fee_amount: string;
+  direct_expenses: string;
   annual_premium_due: string;
   start_date: string;
   end_date: string;
@@ -109,6 +111,8 @@ const EMPTY: FormValues = {
   debit_note_no: "",
   sum_insured: "",
   tppd_limit: "",
+  fee_amount: "",
+  direct_expenses: "",
   annual_premium_due: "",
   start_date: "",
   end_date: "",
@@ -141,6 +145,8 @@ export function TransactionFormPage() {
   const isEdit = Boolean(txId);
   const [searchParams] = useSearchParams();
   const preselectClientId = searchParams.get("client_id");
+  // e.g. from a client's coverage gaps: /transactions/new?client_id=1&class_of_business=Group%20Life
+  const preselectClass = searchParams.get("class_of_business") || "";
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [values, setValues] = useState<FormValues>(EMPTY);
@@ -209,6 +215,8 @@ export function TransactionFormPage() {
         payment_due_date: String(t.payment_due_date ?? ""),
         sum_insured: num(t.sum_insured),
         tppd_limit: t.tppd_limit === null || t.tppd_limit === undefined ? "" : String(t.tppd_limit),
+        fee_amount: Number(t.fee_amount) ? String(t.fee_amount) : "",
+        direct_expenses: Number(t.direct_expenses) ? String(t.direct_expenses) : "",
         annual_premium_due: num(t.annual_premium_due),
         start_date: String(t.start_date ?? ""),
         end_date: String(t.end_date ?? ""),
@@ -247,9 +255,10 @@ export function TransactionFormPage() {
         client_address: String(c.address ?? ""),
         client_city: String(c.city ?? ""),
         client_state: String(c.state ?? ""),
+        ...(preselectClass && !prev.class_of_business ? { class_of_business: preselectClass } : {}),
       }));
     }
-  }, [isEdit, preselectQuery.data]);
+  }, [isEdit, preselectQuery.data, preselectClass]);
 
   function set<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -735,6 +744,22 @@ export function TransactionFormPage() {
             <div className="field">
               <label htmlFor="co_brokers">Co-brokers</label>
               <input id="co_brokers" type="number" step="0.01" value={values.co_brokers} onChange={(e) => set("co_brokers", e.target.value)} />
+            </div>
+            <div className="field">
+              <label htmlFor="fee_amount">Broker fee</label>
+              <input id="fee_amount" type="number" step="0.01" min="0" value={values.fee_amount} onChange={(e) => set("fee_amount", e.target.value)} />
+            </div>
+            <div className="field">
+              <label htmlFor="direct_expenses">Other direct expenses</label>
+              <input
+                id="direct_expenses"
+                type="number"
+                step="0.01"
+                min="0"
+                title="Survey, inspection or other costs charged to this policy (used in underwriting profitability)"
+                value={values.direct_expenses}
+                onChange={(e) => set("direct_expenses", e.target.value)}
+              />
             </div>
             <div className="field">
               <label htmlFor="total_brokerage_preview">Total brokerage (auto)</label>

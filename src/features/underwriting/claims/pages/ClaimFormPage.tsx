@@ -12,6 +12,12 @@ interface FormOptions {
   relationshipTypes: string[];
 }
 
+// Common root causes, offered as suggestions; any text is accepted. Used in the client risk report.
+const CLAIM_CAUSE_SUGGESTIONS = [
+  "Electrical fault", "Driver error", "Third-party negligence", "Mechanical failure", "Poor housekeeping",
+  "Security lapse", "Employee dishonesty", "Natural causes", "Flooding / blocked drainage", "Packing / handling damage",
+];
+
 interface Claim {
   id: number;
   claim_no: string;
@@ -25,6 +31,7 @@ interface Claim {
   reporter_email: string | null;
   relationship_to_insured: string | null;
   loss_type: string | null;
+  claim_cause: string | null;
   location_of_loss: string | null;
   description: string | null;
   police_report_no: string | null;
@@ -35,10 +42,22 @@ interface Claim {
   claimed_amount: number;
   excess_amount: number;
   approved_amount: number;
+  paid_amount: number;
+  salvage_recovery_amount: number;
   adjuster_name: string | null;
   adjuster_phone: string | null;
   adjuster_email: string | null;
   handler_user_id: number | null;
+}
+
+interface AdjusterOption {
+  id: number;
+  adjuster_ref: string | null;
+  name: string;
+  contact_person: string | null;
+  office_phone: string | null;
+  mobile_phone: string | null;
+  email: string | null;
 }
 
 export function ClaimFormPage() {
@@ -58,6 +77,7 @@ export function ClaimFormPage() {
   const [reporterEmail, setReporterEmail] = useState("");
   const [relationship, setRelationship] = useState("");
   const [lossType, setLossType] = useState("");
+  const [claimCause, setClaimCause] = useState("");
   const [locationOfLoss, setLocationOfLoss] = useState("");
   const [description, setDescription] = useState("");
   const [policeReportNo, setPoliceReportNo] = useState("");
@@ -68,6 +88,8 @@ export function ClaimFormPage() {
   const [claimedAmount, setClaimedAmount] = useState("");
   const [excessAmount, setExcessAmount] = useState("");
   const [approvedAmount, setApprovedAmount] = useState("");
+  const [paidAmount, setPaidAmount] = useState("");
+  const [recoveryAmount, setRecoveryAmount] = useState("");
   const [adjusterName, setAdjusterName] = useState("");
   const [adjusterPhone, setAdjusterPhone] = useState("");
   const [adjusterEmail, setAdjusterEmail] = useState("");
@@ -80,6 +102,21 @@ export function ClaimFormPage() {
     queryKey: ["claims", "meta"],
     queryFn: () => api.get<FormOptions>("/api/claims/meta/form-options"),
   });
+
+  // Loss adjusting firms on file (Business Partners > Loss Adjusters); picking one fills the adjuster fields.
+  const adjustersQuery = useQuery({
+    queryKey: ["loss-adjusters", "options"],
+    queryFn: () =>
+      api.get<{ lossAdjusters: AdjusterOption[] }>("/api/loss-adjusters/options"),
+  });
+  const adjusters = adjustersQuery.data?.lossAdjusters ?? [];
+  function pickAdjuster(id: string) {
+    const firm = adjusters.find((a) => String(a.id) === id);
+    if (!firm) return;
+    setAdjusterName(firm.name);
+    setAdjusterPhone([firm.office_phone, firm.mobile_phone].filter(Boolean).join(", "));
+    setAdjusterEmail((firm.email || "").split(",")[0].trim());
+  }
 
   const editQuery = useQuery({
     queryKey: ["claims", claimId],
@@ -99,6 +136,7 @@ export function ClaimFormPage() {
       setReporterEmail(c.reporter_email || "");
       setRelationship(c.relationship_to_insured || "");
       setLossType(c.loss_type || "");
+      setClaimCause(c.claim_cause || "");
       setLocationOfLoss(c.location_of_loss || "");
       setDescription(c.description || "");
       setPoliceReportNo(c.police_report_no || "");
@@ -109,6 +147,8 @@ export function ClaimFormPage() {
       setClaimedAmount(String(c.claimed_amount ?? ""));
       setExcessAmount(String(c.excess_amount ?? ""));
       setApprovedAmount(String(c.approved_amount ?? ""));
+      setPaidAmount(String(c.paid_amount ?? ""));
+      setRecoveryAmount(String(c.salvage_recovery_amount ?? ""));
       setAdjusterName(c.adjuster_name || "");
       setAdjusterPhone(c.adjuster_phone || "");
       setAdjusterEmail(c.adjuster_email || "");
@@ -136,6 +176,7 @@ export function ClaimFormPage() {
       reporter_email: reporterEmail,
       relationship_to_insured: relationship,
       loss_type: lossType,
+      claim_cause: claimCause,
       location_of_loss: locationOfLoss,
       description,
       police_report_no: policeReportNo,
@@ -146,6 +187,7 @@ export function ClaimFormPage() {
       claimed_amount: claimedAmount,
       excess_amount: excessAmount,
       approved_amount: approvedAmount,
+      ...(isEdit ? { paid_amount: paidAmount, salvage_recovery_amount: recoveryAmount } : {}),
       adjuster_name: adjusterName,
       adjuster_phone: adjusterPhone,
       adjuster_email: adjusterEmail,
@@ -260,6 +302,21 @@ export function ClaimFormPage() {
               </select>
             </div>
             <div className="field">
+              <label htmlFor="claim_cause">Root Cause</label>
+              <input
+                id="claim_cause"
+                list="claim_cause_options"
+                placeholder="e.g. Electrical fault, driver error"
+                value={claimCause}
+                onChange={(e) => setClaimCause(e.target.value)}
+              />
+              <datalist id="claim_cause_options">
+                {CLAIM_CAUSE_SUGGESTIONS.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </div>
+            <div className="field">
               <label htmlFor="location_of_loss">Location of Loss</label>
               <input id="location_of_loss" value={locationOfLoss} onChange={(e) => setLocationOfLoss(e.target.value)} />
             </div>
@@ -315,6 +372,25 @@ export function ClaimFormPage() {
                 <input id="approved_amount" type="number" step="0.01" value={approvedAmount} onChange={(e) => setApprovedAmount(e.target.value)} />
               </div>
             )}
+            {isEdit && (
+              <div className="field">
+                <label htmlFor="paid_amount">Paid Amount</label>
+                <input id="paid_amount" type="number" step="0.01" min="0" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} />
+              </div>
+            )}
+            {isEdit && (
+              <div className="field">
+                <label htmlFor="salvage_recovery_amount">Salvage / Subrogation Recovered</label>
+                <input
+                  id="salvage_recovery_amount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={recoveryAmount}
+                  onChange={(e) => setRecoveryAmount(e.target.value)}
+                />
+              </div>
+            )}
           </div>
 
           <div className="section-title">Claim handler</div>
@@ -335,6 +411,24 @@ export function ClaimFormPage() {
 
           <div className="section-title">Adjuster</div>
           <div className="form-grid">
+            {adjusters.length > 0 && (
+              <div className="field span-3">
+                <label htmlFor="adjuster_pick">Pick a loss adjuster</label>
+                <select
+                  id="adjuster_pick"
+                  value={String(adjusters.find((a) => a.name === adjusterName)?.id ?? "")}
+                  onChange={(e) => pickAdjuster(e.target.value)}
+                >
+                  <option value="">Choose from the loss adjusters directory…</option>
+                  {adjusters.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.adjuster_ref ? `${a.adjuster_ref} · ${a.name}` : a.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="field-hint">Fills the name, phone and email below; you can still edit them.</p>
+              </div>
+            )}
             <div className="field">
               <label htmlFor="adjuster_name">Adjuster Name</label>
               <input id="adjuster_name" value={adjusterName} onChange={(e) => setAdjusterName(e.target.value)} />

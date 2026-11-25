@@ -66,8 +66,25 @@ interface DocumentRow {
   uploaded_at: string;
 }
 
+// The loss adjusters directory entry whose name matches the claim's adjuster, if any.
+interface LossAdjuster {
+  id: number;
+  adjuster_ref: string | null;
+  name: string;
+  contact_person: string | null;
+  address: string | null;
+  office_phone: string | null;
+  mobile_phone: string | null;
+  email: string | null;
+  website: string | null;
+  licence_no: string | null;
+  licence_status: string;
+  is_active: number;
+}
+
 interface Response {
   claim: Claim;
+  lossAdjuster: LossAdjuster | null;
   transaction: Transaction | null;
   events: ClaimEvent[];
   documents: DocumentRow[];
@@ -97,7 +114,14 @@ export function ClaimDetailPage() {
 
   if (isLoading) return <p>Loading…</p>;
   if (!data) return <p>Claim not found.</p>;
-  const { claim, transaction, events, documents } = data;
+  const { claim, transaction, events, documents, lossAdjuster } = data;
+  // The claim's own adjuster phone/email win; otherwise the matching directory firm's.
+  const adjusterPhone =
+    claim.adjuster_phone || [lossAdjuster?.office_phone, lossAdjuster?.mobile_phone].filter(Boolean).join(", ");
+  const adjusterEmails = (claim.adjuster_email || lossAdjuster?.email || "")
+    .split(",")
+    .map((e) => e.trim())
+    .filter(Boolean);
 
   async function handleAddEvent(e: FormEvent) {
     e.preventDefault();
@@ -355,14 +379,6 @@ export function ClaimDetailPage() {
             <div className="v">{claim.date_notified_to_insurer || "—"}</div>
           </div>
           <div>
-            <div className="k">Adjuster</div>
-            <div className="v">
-              {claim.adjuster_name || "—"}
-              {claim.adjuster_phone ? ` · ${claim.adjuster_phone}` : ""}
-              {claim.adjuster_email ? ` · ${claim.adjuster_email}` : ""}
-            </div>
-          </div>
-          <div>
             <div className="k">Discharge Voucher No</div>
             <div className="v">{claim.discharge_voucher_no || "—"}</div>
           </div>
@@ -395,6 +411,81 @@ export function ClaimDetailPage() {
             </div>
           </form>
         </RoleGate>
+      </div>
+
+      <div className="card">
+        <h2>Loss Adjuster</h2>
+        {!claim.adjuster_name ? (
+          <p className="exec-state">
+            No loss adjuster assigned yet.{" "}
+            <RoleGate need="write">
+              <Link to={`/claims/${claim.id}/edit`}>Assign one</Link>
+            </RoleGate>
+          </p>
+        ) : (
+          <>
+            <div className="detail-grid">
+              <div>
+                <div className="k">Firm</div>
+                <div className="v">
+                  {lossAdjuster ? (
+                    <>
+                      <Link to={`/loss-adjusters?preview=${lossAdjuster.id}`}>{claim.adjuster_name}</Link>
+                      {lossAdjuster.adjuster_ref && <span className="exec-dl-note"> · {lossAdjuster.adjuster_ref}</span>}
+                    </>
+                  ) : (
+                    claim.adjuster_name
+                  )}
+                </div>
+              </div>
+              <div>
+                <div className="k">Contact person</div>
+                <div className="v">{lossAdjuster?.contact_person || "—"}</div>
+              </div>
+              <div>
+                <div className="k">Phone</div>
+                <div className="v">{adjusterPhone || "—"}</div>
+              </div>
+              <div>
+                <div className="k">Email</div>
+                <div className="v">
+                  {adjusterEmails.length
+                    ? adjusterEmails.map((e) => (
+                        <div key={e}>
+                          <a href={`mailto:${e}`}>{e}</a>
+                        </div>
+                      ))
+                    : "—"}
+                </div>
+              </div>
+              {lossAdjuster && (
+                <>
+                  <div>
+                    <div className="k">Office address</div>
+                    <div className="v">{lossAdjuster.address || "—"}</div>
+                  </div>
+                  <div>
+                    <div className="k">NAICOM licence</div>
+                    <div className="v">
+                      {[lossAdjuster.licence_no, lossAdjuster.licence_status].filter(Boolean).join(" · ")}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            {!lossAdjuster && (
+              <p className="field-hint" style={{ marginTop: "0.75rem" }}>
+                This adjuster isn't in the loss adjusters directory, so no address or NAICOM licence is on file. Pick the firm
+                from the directory when editing the claim to link them.
+              </p>
+            )}
+            {lossAdjuster && lossAdjuster.licence_status !== "Active" && (
+              <p className="field-hint" style={{ marginTop: "0.75rem" }}>
+                NAICOM licence {lossAdjuster.licence_status === "Not verified" ? "not yet verified" : lossAdjuster.licence_status.toLowerCase()} for this firm.
+              </p>
+            )}
+          </>
+        )}
       </div>
 
       </div>

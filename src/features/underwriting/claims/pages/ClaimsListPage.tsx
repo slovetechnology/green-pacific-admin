@@ -20,6 +20,9 @@ interface ClaimRow {
   date_reported: string | null;
   claimed_amount: number;
   approved_amount: number;
+  adjuster_name: string | null;
+  // The loss adjusters directory firm the adjuster name matches, if any.
+  loss_adjuster: { id: number; adjuster_ref: string | null } | null;
 }
 
 interface Response {
@@ -28,6 +31,8 @@ interface Response {
   status: string;
   clientId: string;
   statuses: string[];
+  // Directory firms named on at least one claim, with how many.
+  adjusterOptions: { id: number; adjuster_ref: string | null; name: string; claims: number }[];
 }
 
 // The slice of GET /api/claims/:id the drawer shows.
@@ -108,15 +113,17 @@ export function ClaimsListPage() {
   const q = searchParams.get("q") || "";
   const status = searchParams.get("status") || "";
   const clientId = searchParams.get("client_id") || "";
+  // A loss adjuster id, "none" or "other" (see the Loss adjuster filter below).
+  const adjuster = searchParams.get("adjuster") || "";
   const [qInput, setQInput] = useState(q);
   const [selected, setSelected] = useState<ClaimRow | null>(null);
   const closeDrawer = useCallback(() => setSelected(null), []);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["claims", q, status, clientId],
+    queryKey: ["claims", q, status, clientId, adjuster],
     queryFn: () =>
       api.get<Response>(
-        `/api/claims?q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}&client_id=${encodeURIComponent(clientId)}`
+        `/api/claims?q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}&client_id=${encodeURIComponent(clientId)}&adjuster=${encodeURIComponent(adjuster)}`
       ),
   });
 
@@ -135,6 +142,26 @@ export function ClaimsListPage() {
     { key: "date_reported", header: "Date Reported", render: (c) => c.date_reported || "—" },
     { key: "claimed_amount", header: "Claimed", align: "right", render: (c) => fmtMoney(c.claimed_amount) },
     { key: "approved_amount", header: "Approved", align: "right", render: (c) => fmtMoney(c.approved_amount) },
+    {
+      key: "loss_adjuster",
+      header: "Loss Adjuster",
+      render: (c) =>
+        !c.adjuster_name ? (
+          "—"
+        ) : c.loss_adjuster ? (
+          <>
+            <Link to={`/loss-adjusters?preview=${c.loss_adjuster.id}`} onClick={(ev) => ev.stopPropagation()}>
+              {c.adjuster_name}
+            </Link>
+            {c.loss_adjuster.adjuster_ref && <div className="exec-dl-note">{c.loss_adjuster.adjuster_ref}</div>}
+          </>
+        ) : (
+          <>
+            {c.adjuster_name}
+            <div className="exec-dl-note">Not in directory</div>
+          </>
+        ),
+    },
     { key: "status", header: "Status", render: (c) => <StatusBadge status={c.status} /> },
     {
       key: "preview",
@@ -155,13 +182,13 @@ export function ClaimsListPage() {
   const approved = rows.reduce((sum, c) => sum + (Number(c.approved_amount) || 0), 0);
   const portal = rows.filter((c) => c.source === "Portal").length;
   const metrics: Metric[] = [
-    { key: "total", label: q || status || clientId ? "Matching claims" : "All claims", value: rows.length },
+    { key: "total", label: q || status || clientId || adjuster ? "Matching claims" : "All claims", value: rows.length },
     { key: "open", label: "Open", value: open.length, tone: open.length ? "warn" : "neutral" },
     { key: "claimed", label: "Claimed", value: fmtMoneyShort(claimed), title: fmtMoney(claimed) },
     { key: "approved", label: "Approved", value: fmtMoneyShort(approved), title: fmtMoney(approved), tone: "good" },
     { key: "portal", label: "Self-reported", value: portal, note: "Filed from the customer portal" },
   ];
-  const activeFilters = [q, status, clientId].filter(Boolean).length;
+  const activeFilters = [q, status, clientId, adjuster].filter(Boolean).length;
 
   return (
     <div className="exec">
@@ -194,7 +221,7 @@ export function ClaimsListPage() {
       >
         <label className="exec-search">
           <span>Search</span>
-          <input type="search" placeholder="Claim no or client…" value={qInput} onChange={(e) => setQInput(e.target.value)} />
+          <input type="search" placeholder="Claim no, client or adjuster…" value={qInput} onChange={(e) => setQInput(e.target.value)} />
         </label>
         <label className="exec-filter">
           <span>Status</span>
@@ -203,6 +230,23 @@ export function ClaimsListPage() {
             {data?.statuses.map((s) => (
               <option key={s} value={s}>
                 {s}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="exec-filter">
+          <span>Loss adjuster</span>
+          <select value={adjuster} onChange={(e) => updateParam("adjuster", e.target.value)}>
+            <option value="">All</option>
+            <option value="none">No adjuster</option>
+            <option value="other">Not in directory</option>
+            {adjuster && !["none", "other"].includes(adjuster) && !data?.adjusterOptions.some((a) => String(a.id) === adjuster) && (
+              <option value={adjuster}>Selected firm</option>
+            )}
+            {data?.adjusterOptions.map((a) => (
+              <option key={a.id} value={String(a.id)}>
+                {a.adjuster_ref ? `${a.adjuster_ref} · ` : ""}
+                {a.name} ({a.claims})
               </option>
             ))}
           </select>

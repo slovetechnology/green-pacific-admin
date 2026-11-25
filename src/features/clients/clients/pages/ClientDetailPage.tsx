@@ -9,6 +9,7 @@ import { MetricStrip, type Metric } from "@/shared/components/exec/MetricStrip";
 import { Tabs, type TabDef } from "@/shared/components/exec/Tabs";
 import "@/shared/styles/executive.css";
 import { ClientCorrespondence } from "@/features/clients/messages/components/ClientCorrespondence";
+import { RiskAnalyticsTab } from "@/features/clients/risk-analytics/components/RiskAnalyticsTab";
 import { alertDialog, confirmDialog } from "@/shared/components/Dialogs";
 
 interface ClaimRow {
@@ -204,6 +205,7 @@ export function ClientDetailPage() {
     { id: "overview", label: "Overview", count: transactions.length },
     { id: "people", label: "Contacts & documents", count: contacts.length + documents.length },
     { id: "messages", label: "Messages", count: nMessages },
+    { id: "risk", label: "Risk & Portfolio Analytics" },
   ];
   const tab = tabs.some((x) => x.id === searchParams.get("tab")) ? (searchParams.get("tab") as string) : "overview";
   function setTab(id: string) {
@@ -599,6 +601,12 @@ export function ClientDetailPage() {
       {tab === "messages" && (
       <div role="tabpanel" id="client-panel-messages" aria-labelledby="client-tab-messages" tabIndex={0} className="exec-tabpanel">
         <ClientCorrespondence clientId={Number(clientId)} />
+      </div>
+      )}
+
+      {tab === "risk" && (
+      <div role="tabpanel" id="client-panel-risk" aria-labelledby="client-tab-risk" tabIndex={0} className="exec-tabpanel">
+        <RiskAnalyticsTab clientId={String(clientId)} />
       </div>
       )}
 
