@@ -126,6 +126,12 @@ export interface Quote {
   received_at: string | null;
   exclusions_json?: string | null;
   coverage_limits_json?: string | null;
+  // Quote revisions (migration 0036): the revision number, and the terms added with it.
+  revision?: number;
+  currency?: string;
+  line_offered?: number; // a fraction: the share of the risk offered
+  valid_until?: string | null;
+  subjectivities?: string[];
 }
 
 export interface CompareQuote extends Quote {
@@ -137,6 +143,10 @@ export interface CompareQuote extends Quote {
   coverageLimits: Record<string, number>;
   exclusions: string[];
   totalCoverageLimit: number;
+  currency: string;
+  lineOffered: number;
+  isPartLine: boolean;
+  isExpired: boolean;
 }
 
 export interface CompareResponse {
@@ -145,6 +155,8 @@ export interface CompareResponse {
   hasCompliantQuote: boolean;
   mandatoryCoverages: { code: string; title: string }[];
   selectedQuoteId: number | null;
+  currencies?: string[];
+  expiredCount?: number;
 }
 
 export interface Deal extends Omit<DealRow, "next_step_label" | "next_step_ready" | "next_step_stage"> {
