@@ -15,12 +15,13 @@ import { ActivityTab } from "../components/tabs/ActivityTab";
 import { CommissionTab } from "../components/tabs/CommissionTab";
 import { DocumentsTab } from "../components/tabs/DocumentsTab";
 import { OverviewTab } from "../components/tabs/OverviewTab";
+import { BindingTab } from "../components/tabs/BindingTab";
 import { MarketsTab } from "../components/tabs/MarketsTab";
 import { QuotesTab } from "../components/tabs/QuotesTab";
 import { RiskTab } from "../components/tabs/RiskTab";
 import { OPEN_STAGES, STAGES, isStaffDetail, tabForWhere, type AgentDealDetail, type DealDetail, type FormOptions } from "../lib/types";
 
-const TAB_IDS = ["overview", "risk", "markets", "quotes", "documents", "activity", "commission"];
+const TAB_IDS = ["overview", "risk", "markets", "quotes", "binding", "documents", "activity", "commission"];
 
 export function DealDetailPage() {
   const { dealId } = useParams();
@@ -57,6 +58,7 @@ export function DealDetailPage() {
     { id: "risk", label: "Risk / Slip", count: detail.slips.length || undefined },
     { id: "markets", label: "Markets" },
     { id: "quotes", label: "Quotes", count: detail.quotes.length || undefined },
+    { id: "binding", label: "Binding" },
     { id: "documents", label: "Documents", count: detail.documents.length || undefined },
     { id: "activity", label: "Activity", count: detail.activities.length || undefined },
     { id: "commission", label: "Commission" },
@@ -127,6 +129,7 @@ export function DealDetailPage() {
         {tab === "risk" && <RiskTab {...tabProps} />}
         {tab === "markets" && <MarketsTab {...tabProps} />}
         {tab === "quotes" && <QuotesTab {...tabProps} />}
+        {tab === "binding" && <BindingTab {...tabProps} />}
         {tab === "documents" && <DocumentsTab {...tabProps} />}
         {tab === "activity" && <ActivityTab {...tabProps} />}
         {tab === "commission" && <CommissionTab {...tabProps} />}
