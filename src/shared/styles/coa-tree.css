@@ -1,0 +1,28 @@
+.coa-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+.coa-search { flex: 1 1 16rem; min-width: 12rem; }
+.coa-legend, .coa-expand { display: flex; gap: 0.4rem; }
+.coa-tree { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-1); }
+.coa-row { display: flex; align-items: center; gap: 0.6rem; min-height: 2.4rem; padding-right: 0.75rem; border-bottom: 1px solid var(--border); border-left: 3px solid transparent; }
+.coa-row:last-child { border-bottom: 0; }
+.coa-row:hover { background: color-mix(in srgb, var(--brand) 6%, var(--surface-1)); }
+.coa-row.coa-fiduciary { border-left-color: var(--status-warning); }
+.coa-row.coa-operating { border-left-color: var(--brand); }
+.coa-row.coa-match { background: color-mix(in srgb, var(--status-warning) 10%, var(--surface-1)); }
+.coa-row.coa-archived { opacity: 0.6; }
+.coa-toggle { width: 1.5rem; flex: 0 0 1.5rem; padding: 0; border: 0; background: none; color: var(--text-muted); cursor: pointer; font-size: 1rem; }
+.coa-toggle:disabled { cursor: default; }
+.coa-toggle-spacer { display: inline-block; }
+.coa-code { font-variant-numeric: tabular-nums; font-weight: 700; flex: 0 0 3.5rem; }
+.coa-name { flex: 1 1 auto; min-width: 0; }
+.coa-name.coa-header { font-weight: 700; }
+.coa-name mark, .coa-code mark { background: color-mix(in srgb, var(--status-warning) 35%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
+.coa-tag { display: inline-flex; align-items: center; padding: 0.1rem 0.55rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
+.coa-tag-fiduciary { color: var(--status-warning); background: color-mix(in srgb, var(--status-warning) 18%, transparent); border: 1px solid color-mix(in srgb, var(--status-warning) 40%, transparent); }
+.coa-tag-operating { color: var(--brand-dark); background: color-mix(in srgb, var(--brand) 14%, transparent); border: 1px solid color-mix(in srgb, var(--brand) 35%, transparent); }
+.coa-posting { font-size: 0.72rem; color: var(--text-muted); }
+.coa-actions { display: flex; gap: 0.4rem; margin-left: auto; }
+.coa-empty { color: var(--text-muted); padding: 1rem 0; }
+@media (max-width: 640px) {
+  .coa-posting { display: none; }
+  .coa-row { flex-wrap: wrap; padding-block: 0.4rem; }
+}

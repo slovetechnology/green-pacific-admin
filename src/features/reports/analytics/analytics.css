@@ -1,0 +1,39 @@
+/* Analytics page: only what executive.css and kpi.css don't already provide. */
+
+/* Widget grid: 3 columns on wide screens (trend spans two), 2 on tablets, 1 on phones. */
+.an-grid { display: grid; gap: var(--exec-gap); grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; }
+.an-span-2 { grid-column: span 2; min-width: 0; }
+.an-grid > * { min-width: 0; }
+@media (max-width: 1100px) { .an-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .an-grid { grid-template-columns: minmax(0, 1fr); } .an-span-2 { grid-column: auto; } }
+
+/* A re-sliced response is on its way: keep the old figures, just soften them. */
+.an-body { transition: opacity 0.15s ease; }
+.an-body.is-stale { opacity: 0.55; }
+@media (prefers-reduced-motion: reduce) { .an-body { transition: none; } }
+
+/* Filter bar */
+.an-filters .exec-filter input[type="date"] { width: 100%; padding: 0.3rem 0.5rem; border: 1px solid var(--border); border-radius: var(--exec-radius); background: var(--surface-0); color: var(--text-primary); font-size: var(--text-sm); }
+.an-filter-actions { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; flex-wrap: wrap; }
+
+/* Client x class heatmap */
+.hm-summary { margin: 0; padding: 0.5rem var(--exec-pad); }
+.hm-table td.wrap { min-width: 9rem; }
+.hm-cell { font-variant-numeric: tabular-nums; border: 1px solid var(--surface-1); }
+.hm-legend { display: flex; align-items: center; gap: 0.35rem; padding: 0.5rem var(--exec-pad); font-size: var(--text-sm); color: var(--text-muted); }
+.hm-swatch { width: 1.5rem; height: 0.75rem; border-radius: 2px; }
+
+/* Revenue forecast */
+.fc-summary, .fc-basis { margin: 0; padding: 0.5rem 0; }
+.fc-basis { font-size: var(--text-sm); color: var(--text-muted); }
+.fc-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: var(--exec-radius); overflow: hidden; }
+.fc-toggle button { padding: 0.25rem 0.7rem; border: 0; background: var(--surface-0); color: var(--text-primary); font-size: var(--text-sm); cursor: pointer; }
+.fc-toggle button.is-active { background: var(--brand); color: #fff; }
+
+/* Detail table */
+.an-search { min-width: 14rem; padding: 0.3rem 0.5rem; border: 1px solid var(--border); border-radius: var(--exec-radius); background: var(--surface-0); color: var(--text-primary); font-size: var(--text-sm); }
+.an-table td, .an-table th { white-space: nowrap; }
+.an-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.an-sort { padding: 0; border: 0; background: none; color: inherit; font: inherit; font-weight: inherit; cursor: pointer; }
+.an-sort:hover { color: var(--brand); }
+.an-pager { display: flex; align-items: center; justify-content: flex-end; gap: 0.75rem; flex-wrap: wrap; padding: 0.5rem var(--exec-pad); border-top: 1px solid var(--border); font-size: var(--text-sm); color: var(--text-muted); }

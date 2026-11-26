@@ -1,0 +1,32 @@
+.placement .card { margin-bottom: 1.25rem; }
+.placement-statutory { border: 2px solid var(--status-critical); background: color-mix(in srgb, var(--status-critical) 10%, var(--surface-1)); color: var(--text); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+.placement-statutory strong { color: var(--status-critical); font-size: 1.05rem; letter-spacing: 0.03em; }
+.placement-statutory p { margin: 0.4rem 0 0; font-weight: 600; }
+.placement-split { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: 1.25rem; margin-bottom: 1.25rem; }
+.placement-split .card { margin-bottom: 0; }
+.placement-facts { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 1rem; margin: 0 0 1rem; }
+.placement-facts dt { color: var(--text-muted); }
+.placement-facts dd { margin: 0; }
+.placement-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.placement-currency { display: flex; align-items: center; gap: 0.75rem; }
+.placement-note { color: var(--text-muted); font-size: 0.85rem; margin: 0.75rem 0 0; }
+.placement-clause { border-top: 1px solid var(--border); padding: 0.75rem 0; }
+.placement-clause-head { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.4rem; }
+.placement-clause-head .btn-secondary { margin-left: auto; }
+.placement-clause-title { flex: 1; }
+.placement-clause textarea { width: 100%; }
+.placement-mandatory { color: var(--status-critical); font-size: 0.75rem; font-weight: 700; }
+
+.placement-print-ref { display: none; font-size: 1.1rem; margin-bottom: 1rem; }
+
+@media print {
+  .placement-print-ref { display: block; }
+  .topbar, .sidebar-nav, .sidebar-backdrop, .no-print { display: none !important; }
+  .main-content { margin: 0 !important; padding: 0 !important; }
+  .placement input, .placement textarea { border: none; background: none; padding: 0; resize: none; }
+  .placement .card, .placement-statutory { break-inside: avoid; }
+}
+.placement-issues { border: 1px solid var(--status-warning); background: color-mix(in srgb, var(--status-warning) 12%, var(--surface-1)); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.25rem; }
+.placement-issues ul { margin: 0.4rem 0 0; padding-left: 1.2rem; }
+.placement-print-ref div { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.15rem; }
+@media print { .placement-clause { break-inside: avoid; } .placement .card { break-inside: auto; } }

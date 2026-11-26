@@ -1,0 +1,547 @@
+import { useState, type FormEvent } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { api, apiUpload, ApiError, apiUrl, documentTooLarge } from "@/shared/api/client";
+import { StatusBadge } from "@/shared/components/StatusBadge";
+import { RoleGate } from "@/app/guards/RoleGate";
+import { confirmAction } from "@/shared/components/ConfirmDialog";
+import { fmtMoney, fmtMoneyShort } from "@/shared/lib/format";
+import { MetricStrip, type Metric } from "@/shared/components/exec/MetricStrip";
+import { Tabs, type TabDef } from "@/shared/components/exec/Tabs";
+import "@/shared/styles/executive.css";
+
+interface Claim {
+  id: number;
+  claim_no: string;
+  client_id: number;
+  client_name: string;
+  transaction_id: number | null;
+  source: string;
+  date_of_loss: string | null;
+  date_reported: string | null;
+  reported_by_name: string | null;
+  reporter_phone: string | null;
+  reporter_email: string | null;
+  relationship_to_insured: string | null;
+  loss_type: string | null;
+  location_of_loss: string | null;
+  description: string | null;
+  police_report_no: string | null;
+  police_station: string | null;
+  third_party_involved: number;
+  third_party_details: string | null;
+  status: string;
+  claimed_amount: number;
+  excess_amount: number;
+  reserve_amount: number;
+  approved_amount: number;
+  insurer_claim_no: string | null;
+  date_notified_to_insurer: string | null;
+  discharge_voucher_no: string | null;
+  adjuster_name: string | null;
+  adjuster_phone: string | null;
+  adjuster_email: string | null;
+}
+
+interface Transaction {
+  id: number;
+  policy_no: string | null;
+  class_of_business: string | null;
+  insurer_id: number;
+}
+
+interface ClaimEvent {
+  id: number;
+  event_date: string | null;
+  status: string | null;
+  note: string | null;
+  created_by: string | null;
+}
+
+interface DocumentRow {
+  id: number;
+  doc_type: string;
+  title: string | null;
+  uploaded_by: string | null;
+  uploaded_at: string;
+}
+
+interface Response {
+  claim: Claim;
+  transaction: Transaction | null;
+  events: ClaimEvent[];
+  documents: DocumentRow[];
+  statuses: string[];
+  docTypes: string[];
+}
+
+export function ClaimDetailPage() {
+  const { claimId } = useParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [eventStatus, setEventStatus] = useState("");
+  const [note, setNote] = useState("");
+  const [insurerClaimNo, setInsurerClaimNo] = useState("");
+  const [dateNotified, setDateNotified] = useState(new Date().toISOString().slice(0, 10));
+  const [docType, setDocType] = useState("");
+  const [docTitle, setDocTitle] = useState("");
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["claims", claimId],
+    queryFn: () => api.get<Response>(`/api/claims/${claimId}`),
+  });
+
+  if (isLoading) return <p>Loading…</p>;
+  if (!data) return <p>Claim not found.</p>;
+  const { claim, transaction, events, documents } = data;
+
+  async function handleAddEvent(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      await api.post(`/api/claims/${claimId}/events`, { status: eventStatus || claim.status, note });
+      await queryClient.invalidateQueries({ queryKey: ["claims", claimId] });
+      setNote("");
+      setEventStatus("");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleRegisterLoss(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!insurerClaimNo.trim()) {
+      setError("Enter the insurer's claim reference.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await api.post(`/api/claims/${claimId}/register-loss`, {
+        insurer_claim_no: insurerClaimNo,
+        date_notified_to_insurer: dateNotified,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["claims", claimId] });
+      setInsurerClaimNo("");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleUploadDocument(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!docFile) {
+      setError("Choose a file to upload.");
+      return;
+    }
+    if (!docType) {
+      setError("Choose a document type.");
+      return;
+    }
+    const tooLarge = documentTooLarge(docFile);
+    if (tooLarge) {
+      setError(tooLarge);
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const fd = new FormData();
+      fd.append("doc_type", docType);
+      fd.append("title", docTitle);
+      fd.append("file", docFile);
+      await apiUpload(`/api/claims/${claimId}/documents`, fd);
+      await queryClient.invalidateQueries({ queryKey: ["claims", claimId] });
+      setDocType("");
+      setDocTitle("");
+      setDocFile(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirmAction("Delete this claim? This cannot be undone.")) return;
+    try {
+      await api.delete(`/api/claims/${claimId}`);
+      await queryClient.invalidateQueries({ queryKey: ["claims"] });
+      navigate("/claims");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not delete claim.");
+    }
+  }
+
+  const tabs: TabDef[] = [
+    { id: "details", label: "Claim details" },
+    { id: "insurer", label: "Insurer & adjuster" },
+    { id: "documents", label: "Documents", count: documents.length },
+    { id: "history", label: "History", count: events.length },
+  ];
+  const tab = tabs.some((x) => x.id === searchParams.get("tab")) ? (searchParams.get("tab") as string) : "details";
+  function setTab(id: string) {
+    const next = new URLSearchParams(searchParams);
+    if (id === "details") next.delete("tab");
+    else next.set("tab", id);
+    setSearchParams(next, { replace: true });
+  }
+
+  const metrics: Metric[] = [
+    { key: "claimed", label: "Claimed", value: fmtMoneyShort(claim.claimed_amount), title: fmtMoney(claim.claimed_amount) },
+    { key: "excess", label: "Excess", value: fmtMoneyShort(claim.excess_amount), title: fmtMoney(claim.excess_amount) },
+    { key: "reserve", label: "Reserve", value: fmtMoneyShort(claim.reserve_amount), title: fmtMoney(claim.reserve_amount), tone: claim.reserve_amount > 0 ? "warn" : "neutral" },
+    { key: "approved", label: "Approved", value: fmtMoneyShort(claim.approved_amount), title: fmtMoney(claim.approved_amount), tone: claim.approved_amount > 0 ? "good" : "neutral" },
+    { key: "docs", label: "Documents", value: documents.length },
+  ];
+
+  return (
+    <div className="exec">
+      <header className="exec-header">
+        <div>
+          <span className="exec-eyebrow">
+            <Link to={`/clients/${claim.client_id}`}>{claim.client_name}</Link>
+            {claim.source === "Portal" && <span className="badge badge-market-submission" style={{ marginLeft: "0.5rem" }}>Self-reported</span>}
+          </span>
+          <h1>{claim.claim_no}</h1>
+        </div>
+        <div className="exec-meta">
+          <StatusBadge status={claim.status} />
+          <span>Loss: {claim.date_of_loss || "—"}</span>
+          <span>Reported: {claim.date_reported || "—"}</span>
+        </div>
+        <div className="exec-header-actions">
+          <a className="btn-secondary btn btn-sm" href={apiUrl(`/api/claims/${claimId}/pdf`)} target="_blank" rel="noreferrer">
+            Claim form (PDF)
+          </a>
+          <RoleGate need="write">
+            <button type="button" className="btn-secondary btn btn-sm" onClick={() => navigate(`/claims/${claimId}/edit`)}>
+              Edit
+            </button>
+            <button type="button" className="btn-danger btn btn-sm" onClick={handleDelete}>
+              Delete
+            </button>
+          </RoleGate>
+        </div>
+      </header>
+
+      {error && <div className="flash flash-error">{error}</div>}
+
+      <MetricStrip metrics={metrics} label="Claim financial summary" />
+
+      <section className="exec-workspace" aria-label="Claim workspace">
+        <Tabs tabs={tabs} active={tab} onChange={setTab} idPrefix="claim" label="Claim views" />
+
+      {tab === "details" && (
+      <div role="tabpanel" id="claim-panel-details" aria-labelledby="claim-tab-details" tabIndex={0} className="exec-tabpanel">
+      <div className="card">
+        <h2>Policy &amp; Reporter</h2>
+        <div className="detail-grid">
+          <div>
+            <div className="k">Related Policy</div>
+            <div className="v">
+              {transaction ? (
+                <Link to={`/transactions/${transaction.id}`}>{transaction.policy_no || `#${transaction.id}`}</Link>
+              ) : (
+                "—"
+              )}
+            </div>
+          </div>
+          <div>
+            <div className="k">Reported By</div>
+            <div className="v">
+              {claim.reported_by_name || "—"}
+              {claim.relationship_to_insured ? ` (${claim.relationship_to_insured})` : ""}
+            </div>
+          </div>
+          <div>
+            <div className="k">Reporter Contact</div>
+            <div className="v">
+              {claim.reporter_phone || "—"}
+              {claim.reporter_email ? ` · ${claim.reporter_email}` : ""}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>Loss Details</h2>
+        <div className="detail-grid">
+          <div>
+            <div className="k">Date of Loss</div>
+            <div className="v">{claim.date_of_loss || "—"}</div>
+          </div>
+          <div>
+            <div className="k">Date Reported</div>
+            <div className="v">{claim.date_reported || "—"}</div>
+          </div>
+          <div>
+            <div className="k">Type of Loss</div>
+            <div className="v">{claim.loss_type || "—"}</div>
+          </div>
+          <div>
+            <div className="k">Location of Loss</div>
+            <div className="v">{claim.location_of_loss || "—"}</div>
+          </div>
+          <div>
+            <div className="k">Police Report</div>
+            <div className="v">
+              {claim.police_report_no || "—"}
+              {claim.police_station ? ` · ${claim.police_station}` : ""}
+            </div>
+          </div>
+          <div>
+            <div className="k">Third Party Involved</div>
+            <div className="v">{claim.third_party_involved ? "Yes" : "No"}</div>
+          </div>
+          {Boolean(claim.third_party_involved) && (
+            <div className="span-2">
+              <div className="k">Third Party / Witness Details</div>
+              <div className="v">{claim.third_party_details || "—"}</div>
+            </div>
+          )}
+          <div className="span-2">
+            <div className="k">Description</div>
+            <div className="v">{claim.description || "—"}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>Financials</h2>
+        <div className="detail-grid">
+          <div>
+            <div className="k">Claimed Amount</div>
+            <div className="v">{fmtMoney(claim.claimed_amount)}</div>
+          </div>
+          <div>
+            <div className="k">Policy Excess/Deductible</div>
+            <div className="v">{fmtMoney(claim.excess_amount)}</div>
+          </div>
+          <div>
+            <div className="k">Case Reserve</div>
+            <div className="v">{fmtMoney(claim.reserve_amount)}</div>
+          </div>
+          <div>
+            <div className="k">Approved Amount</div>
+            <div className="v">{fmtMoney(claim.approved_amount)}</div>
+          </div>
+        </div>
+      </div>
+
+      </div>
+      )}
+
+      {tab === "insurer" && (
+      <div role="tabpanel" id="claim-panel-insurer" aria-labelledby="claim-tab-insurer" tabIndex={0} className="exec-tabpanel">
+      <div className="card">
+        <h2>Loss Registration with Insurer</h2>
+        <div className="detail-grid">
+          <div>
+            <div className="k">Insurer Claim Reference</div>
+            <div className="v">{claim.insurer_claim_no || "Not yet registered"}</div>
+          </div>
+          <div>
+            <div className="k">Date Notified to Insurer</div>
+            <div className="v">{claim.date_notified_to_insurer || "—"}</div>
+          </div>
+          <div>
+            <div className="k">Adjuster</div>
+            <div className="v">
+              {claim.adjuster_name || "—"}
+              {claim.adjuster_phone ? ` · ${claim.adjuster_phone}` : ""}
+              {claim.adjuster_email ? ` · ${claim.adjuster_email}` : ""}
+            </div>
+          </div>
+          <div>
+            <div className="k">Discharge Voucher No</div>
+            <div className="v">{claim.discharge_voucher_no || "—"}</div>
+          </div>
+        </div>
+
+        <RoleGate need="write">
+          <form onSubmit={handleRegisterLoss} style={{ marginTop: "1rem" }}>
+            <div className="section-title">
+              {claim.insurer_claim_no ? "Update loss registration" : "Register loss with insurer"}
+            </div>
+            <div className="form-grid">
+              <div className="field">
+                <label htmlFor="insurer_claim_no">Insurer Claim Reference</label>
+                <input
+                  id="insurer_claim_no"
+                  value={insurerClaimNo}
+                  onChange={(e) => setInsurerClaimNo(e.target.value)}
+                  placeholder={claim.insurer_claim_no || "e.g. LEAD/MOT/2026/00123"}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="date_notified">Date Notified to Insurer</label>
+                <input id="date_notified" type="date" value={dateNotified} onChange={(e) => setDateNotified(e.target.value)} />
+              </div>
+            </div>
+            <div className="form-actions">
+              <button type="submit" className="btn" disabled={submitting}>
+                {submitting ? "Saving…" : "Register Loss"}
+              </button>
+            </div>
+          </form>
+        </RoleGate>
+      </div>
+
+      </div>
+      )}
+
+      {tab === "documents" && (
+      <div role="tabpanel" id="claim-panel-documents" aria-labelledby="claim-tab-documents" tabIndex={0} className="exec-tabpanel">
+      <div className="card">
+        <h2>Supporting Documents</h2>
+        <div className="exec-table-wrap">
+          <table className="exec-table is-static">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Title</th>
+                <th>Uploaded By</th>
+                <th>Date</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {documents.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="empty-state">No documents uploaded yet.</td>
+                </tr>
+              )}
+              {documents.map((d) => (
+                <tr key={d.id}>
+                  <td>{d.doc_type}</td>
+                  <td>{d.title || "—"}</td>
+                  <td>{d.uploaded_by || "—"}</td>
+                  <td>{(d.uploaded_at || "").slice(0, 10)}</td>
+                  <td>
+                    <a className="btn-secondary btn btn-sm" href={apiUrl(`/api/documents/${d.id}/file`)} target="_blank" rel="noreferrer">
+                      View
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <RoleGate need="write">
+          <form onSubmit={handleUploadDocument} style={{ marginTop: "1rem" }}>
+            <div className="form-grid">
+              <div className="field">
+                <label htmlFor="doc_type">Document Type</label>
+                <select id="doc_type" value={docType} onChange={(e) => setDocType(e.target.value)}>
+                  <option value="">— Select —</option>
+                  {data.docTypes.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+                <RoleGate need="admin">
+                  <small>
+                    Type missing? <Link to="/document-types?area=claim">Manage claim document types</Link>
+                  </small>
+                </RoleGate>
+              </div>
+              <div className="field">
+                <label htmlFor="doc_title">Title (optional)</label>
+                <input id="doc_title" value={docTitle} onChange={(e) => setDocTitle(e.target.value)} />
+              </div>
+              <div className="field">
+                <label htmlFor="doc_file">File (PDF, PNG, JPG)</label>
+                <input
+                  id="doc_file"
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg"
+                  onChange={(e) => setDocFile(e.target.files?.[0] || null)}
+                />
+              </div>
+            </div>
+            <div className="form-actions">
+              <button type="submit" className="btn" disabled={submitting}>
+                {submitting ? "Uploading…" : "Upload"}
+              </button>
+            </div>
+          </form>
+        </RoleGate>
+      </div>
+
+      </div>
+      )}
+
+      {tab === "history" && (
+      <div role="tabpanel" id="claim-panel-history" aria-labelledby="claim-tab-history" tabIndex={0} className="exec-tabpanel">
+      <div className="card">
+        <h2>Claim History</h2>
+        <div className="exec-table-wrap">
+          <table className="exec-table is-static">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Note</th>
+                <th>By</th>
+              </tr>
+            </thead>
+            <tbody>
+              {events.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="empty-state">No events logged.</td>
+                </tr>
+              )}
+              {events.map((ev) => (
+                <tr key={ev.id}>
+                  <td>{ev.event_date || "—"}</td>
+                  <td>
+                    <StatusBadge status={ev.status} />
+                  </td>
+                  <td>{ev.note || "—"}</td>
+                  <td>{ev.created_by || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <RoleGate need="write">
+          <form onSubmit={handleAddEvent} style={{ marginTop: "1rem" }}>
+            <div className="form-grid">
+              <div className="field">
+                <label htmlFor="event_status">Update status</label>
+                <select id="event_status" value={eventStatus || claim.status} onChange={(e) => setEventStatus(e.target.value)}>
+                  {data.statuses.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="field span-2">
+                <label htmlFor="note">Note</label>
+                <input id="note" value={note} onChange={(e) => setNote(e.target.value)} />
+              </div>
+            </div>
+            <div className="form-actions">
+              <button type="submit" className="btn" disabled={submitting}>
+                {submitting ? "Adding…" : "Add update"}
+              </button>
+            </div>
+          </form>
+        </RoleGate>
+      </div>
+      </div>
+      )}
+      </section>
+    </div>
+  );
+}

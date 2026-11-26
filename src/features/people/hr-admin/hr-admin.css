@@ -1,0 +1,65 @@
+/* HR & admin screens: dense grids, expiry bands, source badges. Uses the app's theme variables only. */
+
+.hr-page { display: grid; gap: var(--space-4, 1rem); }
+.hr-hint { color: var(--text-muted); font-size: 0.85rem; margin: 0.25rem 0; }
+.hr-form .field { margin-bottom: 0.25rem; }
+.hr-plain-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2rem; }
+.hr-link { background: none; border: 0; padding: 0; color: var(--brand); cursor: pointer; font: inherit; text-decoration: underline; }
+.hr-actions { display: inline-flex; gap: 0.35rem; flex-wrap: nowrap; }
+
+/* Grid chrome */
+.hr-grid { display: grid; gap: 0.6rem; }
+.hr-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.hr-toolbar select, .hr-search { padding: 0.3rem 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-0); color: var(--text-primary); font-size: 0.85rem; }
+.hr-search { min-width: 13rem; }
+.main-content .hr-toolbar select, .main-content .hr-toolbar input, .main-content .hr-pager select { width: auto; max-width: 100%; }
+.hr-count { margin-left: auto; color: var(--text-muted); font-size: 0.82rem; }
+.hr-table th, .hr-table td { padding: 0.35rem 0.6rem; font-size: 0.85rem; white-space: nowrap; }
+.hr-table td small { color: var(--text-muted); }
+.hr-sort { background: none; border: 0; padding: 0; font: inherit; font-weight: inherit; color: inherit; cursor: pointer; }
+.hr-sort:hover { color: var(--brand); }
+.hr-row-alert td { background: color-mix(in srgb, var(--status-critical) 7%, transparent); }
+.hr-pager { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; font-size: 0.85rem; color: var(--text-muted); }
+
+/* Registry header */
+.hr-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 0.75rem; }
+.hr-stat { border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.8rem; background: var(--surface-1); }
+.hr-stat h3 { margin: 0 0 0.4rem; font-size: 0.85rem; color: var(--text-secondary); }
+.hr-stat ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.35rem; }
+
+/* Tabs */
+.hr-tabs { display: flex; gap: 0.25rem; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+.hr-tabs button { padding: 0.45rem 0.9rem; border: 0; border-bottom: 3px solid transparent; background: none; color: var(--text-secondary); font: inherit; font-weight: 600; cursor: pointer; }
+.hr-tabs button:hover { color: var(--text-primary); }
+.hr-tabs button.is-active { color: var(--brand); border-bottom-color: var(--brand); }
+
+/* Expiry bands: the words carry the meaning, the tint reinforces it. */
+.hr-band { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.76rem; font-weight: 600; background: var(--surface-2); color: var(--text-secondary); }
+.hr-band-expired { color: var(--status-critical); background: color-mix(in srgb, var(--status-critical) 14%, transparent); }
+.hr-band-30 { color: var(--status-serious); background: color-mix(in srgb, var(--status-serious) 14%, transparent); }
+.hr-band-60 { color: var(--status-warning); background: color-mix(in srgb, var(--status-warning) 14%, transparent); }
+.hr-band-90 { color: var(--text-primary); background: color-mix(in srgb, var(--status-warning) 8%, transparent); }
+.hr-band-ok { color: var(--status-good); background: color-mix(in srgb, var(--status-good) 14%, transparent); }
+.hr-band-date { font-weight: 400; }
+
+/* Auto-fetched vs manually entered figures */
+.hr-source { display: inline-block; margin-right: 0.3rem; padding: 0.05rem 0.45rem; border-radius: 4px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.01em; border: 1px solid currentColor; }
+.hr-source-auto { color: var(--brand); }
+.hr-source-manual { color: var(--text-secondary); }
+.hr-source-adjusted { color: var(--status-warning); }
+.hr-system-figure { color: var(--text-muted); text-decoration: line-through; margin-right: 0.35rem; font-size: 0.85em; }
+
+/* Wizard */
+.hr-steps { display: flex; gap: 0.5rem; list-style: none; padding: 0; margin: 0; flex-wrap: wrap; counter-reset: step; }
+.hr-steps li { counter-increment: step; padding: 0.35rem 0.8rem; border-radius: 999px; border: 1px solid var(--border); color: var(--text-muted); font-size: 0.85rem; }
+.hr-steps li::before { content: counter(step) ". "; font-weight: 700; }
+.hr-steps li.is-active { color: var(--brand); border-color: var(--brand); font-weight: 700; }
+.hr-steps li.is-done { color: var(--status-good); border-color: var(--status-good); }
+.hr-dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 1rem; margin: 0; }
+.hr-dl dt { color: var(--text-muted); font-weight: 600; }
+.hr-dl dd { margin: 0; }
+
+@media (max-width: 600px) {
+  .hr-search { min-width: 0; flex: 1 1 100%; }
+  .hr-count { margin-left: 0; }
+}
