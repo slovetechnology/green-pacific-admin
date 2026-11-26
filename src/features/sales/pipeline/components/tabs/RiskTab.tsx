@@ -1,10 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "@/shared/api/client";
 import { Panel } from "@/shared/components/exec/Panel";
 import { StatusBadge } from "@/shared/components/StatusBadge";
+import { QuestionnairePanel } from "@/features/sales/risk-discovery/components/QuestionnairePanel";
 import { GateNotice } from "../GateNotice";
 import { describeError, missingOf, type GateItem } from "../../lib/types";
+import { marketsKey, marketsUrl, type DealMarkets } from "../../lib/markets";
 import { isClosed, type TabProps } from "./shared";
 
 function parseJson<T>(text: string | null, fallback: T): T {
@@ -28,6 +31,7 @@ export function RiskTab(props: TabProps) {
   return (
     <div role="tabpanel" id="deal-panel-risk" aria-labelledby="deal-tab-risk" tabIndex={0} className="exec-tabpanel">
       <RiskForm {...props} />
+      <QuestionnairePanel dealId={detail.deal.id} canWrite={props.canWrite} onChanged={() => { void props.refresh(); }} />
       <SlipPanel {...props} />
       <p className="pl-hint">Clauses for {detail.deal.class_of_business || "this class"} are attached to the slip automatically from the clause library.</p>
     </div>
@@ -45,6 +49,9 @@ function RiskForm({ detail, options, canWrite, refresh }: TabProps) {
     deductible: String(deal.deductible || ""), premium: String(deal.estimated_premium || ""), tppd: risk.tppd_limit !== undefined ? String(risk.tppd_limit) : "",
   });
   const [chosen, setChosen] = useState<number[]>(targets);
+  // Insurers already sent the slip stay on the deal (their history is on the Markets tab).
+  const { data: markets } = useQuery({ queryKey: marketsKey(deal.id), queryFn: () => api.get<DealMarkets>(marketsUrl(deal.id)) });
+  const approached = new Set((markets?.markets ?? []).filter((m) => m.status !== "Draft").map((m) => m.insurer_id));
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<{ message: string; missing: GateItem[] } | null>(null);
@@ -90,8 +97,8 @@ function RiskForm({ detail, options, canWrite, refresh }: TabProps) {
           <legend className="exec-sub">Insurers to approach</legend>
           <div className="pl-actions">
             {options?.insurers.map((i) => (
-              <label key={i.id} className="pl-check">
-                <input type="checkbox" checked={chosen.includes(i.id)} onChange={(e) => { setChosen(e.target.checked ? [...chosen, i.id] : chosen.filter((x) => x !== i.id)); setSaved(false); }} /> {i.name}
+              <label key={i.id} className="pl-check" title={approached.has(i.id) ? "Already approached: see the Markets tab" : undefined}>
+                <input type="checkbox" checked={chosen.includes(i.id) || approached.has(i.id)} disabled={approached.has(i.id)} onChange={(e) => { setChosen(e.target.checked ? [...chosen, i.id] : chosen.filter((x) => x !== i.id)); setSaved(false); }} /> {i.name}
               </label>
             ))}
           </div>
@@ -108,7 +115,7 @@ function RiskForm({ detail, options, canWrite, refresh }: TabProps) {
   );
 }
 
-function SlipPanel({ detail, canWrite, refresh }: TabProps) {
+function SlipPanel({ detail, canWrite, refresh, goTo }: TabProps) {
   const { deal } = detail;
   const [type, setType] = useState(deal.deal_type === "Renewal" ? "RENEWAL" : "NEW_BUSINESS");
   const [advance, setAdvance] = useState(true);
@@ -152,6 +159,7 @@ function SlipPanel({ detail, canWrite, refresh }: TabProps) {
       {result && (
         <div className="pl-notice is-good" role="status" style={{ marginBottom: "0.7rem" }}>
           <h3>Slip {result.slip.slip_number} created</h3>
+          <p style={{ margin: "0 0 0.3rem" }}>Now send it to each insurer and track their answers. <button type="button" className="btn-link" onClick={() => goTo("markets")}>Open the Markets tab</button></p>
           {result.warnings.length > 0 && <ul>{result.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
           {result.moveError && <GateNotice title="The deal stays at Qualified" message={result.moveError.missing.length ? undefined : result.moveError.message} items={result.moveError.missing} dealId={deal.id} />}
         </div>

@@ -145,6 +145,8 @@ export default [
     route("deals/new", "routes/sales/deals.new.tsx"),
     route("deals/:dealId", "routes/sales/deals.$dealId.tsx"),
     route("deals/:dealId/edit", "routes/sales/deals.$dealId.edit.tsx"),
+    route("expiring-policies", "routes/sales/expiring-policies.tsx"),
+    route("markets", "routes/sales/markets.tsx"),
     route("submissions/:submissionId", "routes/sales/submissions.$submissionId.tsx"),
     route("producers", "routes/partners/producers.tsx"),
     route("producers/import", "routes/partners/producers.import.tsx"),

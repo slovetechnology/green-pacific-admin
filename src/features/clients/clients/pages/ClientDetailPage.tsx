@@ -12,6 +12,7 @@ import { Tabs, type TabDef } from "@/shared/components/exec/Tabs";
 import "@/shared/styles/executive.css";
 import { ClientCorrespondence } from "@/features/clients/messages/components/ClientCorrespondence";
 import { RiskAnalyticsTab } from "@/features/clients/risk-analytics/components/RiskAnalyticsTab";
+import { ClientRiskDiscoveryTab } from "@/features/sales/risk-discovery/components/ClientRiskDiscoveryTab";
 import { alertDialog, confirmDialog } from "@/shared/components/Dialogs";
 
 interface ClaimRow {
@@ -209,6 +210,7 @@ export function ClientDetailPage() {
     { id: "overview", label: "Overview", count: transactions.length },
     { id: "people", label: "Contacts & documents", count: contacts.length + documents.length },
     { id: "messages", label: "Messages", count: nMessages },
+    { id: "discovery", label: "Risk discovery" },
     { id: "risk", label: "Risk & Portfolio Analytics" },
   ];
   const tab = tabs.some((x) => x.id === searchParams.get("tab")) ? (searchParams.get("tab") as string) : "overview";
@@ -609,6 +611,8 @@ export function ClientDetailPage() {
         <ClientCorrespondence clientId={Number(clientId)} />
       </div>
       )}
+
+      {tab === "discovery" && <ClientRiskDiscoveryTab clientId={Number(clientId)} />}
 
       {tab === "risk" && (
       <div role="tabpanel" id="client-panel-risk" aria-labelledby="client-tab-risk" tabIndex={0} className="exec-tabpanel">

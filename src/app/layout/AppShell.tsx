@@ -42,6 +42,8 @@ const SALES_PIPELINE_ITEMS = [
   { to: "/deals/dashboard", label: "Pipeline Dashboard" },
   { to: "/quote-requests", label: "Inbox: Quote Requests" },
   { to: "/kyc-submissions", label: "KYC Submissions" },
+  { to: "/expiring-policies", label: "Expiring Elsewhere" },
+  { to: "/markets", label: "Market Responses" },
   { to: "/producers", label: "Producers" },
   { to: "/campaigns", label: "Campaigns" },
   { to: "/crm/coverage-gaps", label: "Cross-sell" },
@@ -419,7 +421,7 @@ const PORTAL_ITEMS: NavGroupItem[] = [
 const ADMIN_ONLY_PORTAL_PATHS = new Set(["/portal/enquiries"]);
 const NAV_AREAS = [
   { key: "clients", label: "Clients & CRM", items: pick("/clients", "/crm/coverage-gaps", "/quote-requests", "/client-messages") },
-  { key: "sales", label: "Business & Sales", items: pick("/deals", "/deals/dashboard", "/kyc-submissions", "/campaigns", "/crm/bd-kpis") },
+  { key: "sales", label: "Business & Sales", items: pick("/deals", "/deals/dashboard", "/kyc-submissions", "/expiring-policies", "/markets", "/campaigns", "/crm/bd-kpis") },
   { key: "customer-portal", label: "Customer Portal", items: PORTAL_ITEMS },
   { key: "lead-portal", label: "Lead Portal", items: LEAD_PORTAL_ITEMS },
   {

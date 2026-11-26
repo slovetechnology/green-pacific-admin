@@ -279,7 +279,7 @@ export function dealLink(dealId: number, tab?: string): string {
 
 // Gate "where" values name a tab; KYC and the client live elsewhere on the overview.
 export function tabForWhere(where: string): string {
-  return ["overview", "risk", "quotes", "documents", "activity", "commission"].includes(where) ? where : "overview";
+  return ["overview", "risk", "markets", "quotes", "documents", "activity", "commission"].includes(where) ? where : "overview";
 }
 
 export function daysSince(iso: string | null | undefined): number | null {
