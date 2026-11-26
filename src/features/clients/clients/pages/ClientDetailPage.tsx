@@ -6,6 +6,8 @@ import { fmtMoney, fmtMoneyShort } from "@/shared/lib/format";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { KycStandingChip, KycStandingNotice } from "@/features/sales/kyc/components/KycStanding";
 import type { KycStanding } from "@/features/sales/kyc/kycStanding";
+import { SanctionsBadge } from "@/features/compliance/sanctions/components/SanctionsBadge";
+import { ClientConsentPanel } from "@/features/compliance/privacy/components/ClientConsentPanel";
 import { RoleGate } from "@/app/guards/RoleGate";
 import { MetricStrip, type Metric } from "@/shared/components/exec/MetricStrip";
 import { Tabs, type TabDef } from "@/shared/components/exec/Tabs";
@@ -242,6 +244,7 @@ export function ClientDetailPage() {
           <span>{[client.city, client.state].filter(Boolean).join(", ") || "No location"}</span>
           <span>{accountManager?.username ? `Manager: ${accountManager.username}` : "No account manager"}</span>
           {data.kyc && <KycStandingChip kyc={data.kyc} />}
+          <SanctionsBadge type="client" id={Number(clientId)} />
         </div>
         <div className="exec-header-actions">
           <Link className="btn-secondary btn btn-sm" to={`/reports/loss-experience?client_id=${clientId}`}>
@@ -466,6 +469,7 @@ export function ClientDetailPage() {
 
       {tab === "people" && (
       <div role="tabpanel" id="client-panel-people" aria-labelledby="client-tab-people" tabIndex={0} className="exec-tabpanel">
+        <ClientConsentPanel clientId={Number(clientId)} />
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Contacts</h3>
         {contacts.length > 0 && (

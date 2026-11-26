@@ -205,6 +205,8 @@ export function KycSubmissionDetailPage() {
         </div>
       </div>
 
+      <IdentityChecks kycId={String(kycId)} hasBvn={Boolean(kyc.bvn)} hasNin={Boolean(kyc.nin)} />
+
       <div className="card">
         <h2>B. Identification</h2>
         <div className="detail-grid">
@@ -387,6 +389,75 @@ export function KycSubmissionDetailPage() {
           </form>
         </div>
       </RoleGate>
+    </div>
+  );
+}
+
+interface IdentityCheck {
+  id: number; id_type: "BVN" | "NIN"; number_last4: string | null; status: "Verified" | "Mismatch" | "Not found" | "Failed";
+  name_match: boolean | null; dob_match: boolean | null; returned_name: string | null; message: string | null; checked_by: string | null; checked_at: string;
+}
+
+// BVN and NIN checks through Prembly (backend sales/kyc/identityVerification.js). Each check is a paid look-up, so it
+// runs only when someone presses the button; the history stays on the submission.
+function IdentityChecks({ kycId, hasBvn, hasNin }: { kycId: string; hasBvn: boolean; hasNin: boolean }) {
+  const queryClient = useQueryClient();
+  const { data } = useQuery({
+    queryKey: ["kyc-identity-checks", kycId],
+    queryFn: () => api.get<{ configured: boolean; latest: Record<string, string>; checks: IdentityCheck[] }>(`/api/kyc/${kycId}/identity-checks`),
+  });
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  async function run(idType: "BVN" | "NIN") {
+    setBusy(idType);
+    setError(null);
+    try {
+      await api.post(`/api/kyc/${kycId}/identity-checks`, { id_type: idType });
+      await queryClient.invalidateQueries({ queryKey: ["kyc-identity-checks", kycId] });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "The check could not be run.");
+    } finally {
+      setBusy(null);
+    }
+  }
+  const yesNo = (v: boolean | null) => (v === null ? "—" : v ? "Matches" : "Differs");
+  return (
+    <div className="card">
+      <h2>BVN and NIN checks</h2>
+      {data && !data.configured && (
+        <p className="muted">Checks are not set up yet: an administrator adds the Prembly key (PREMBLY_API_KEY) to the API's Render environment.</p>
+      )}
+      <p>
+        BVN: <StatusBadge status={data?.latest.BVN ?? "Not checked"} /> &nbsp; NIN: <StatusBadge status={data?.latest.NIN ?? "Not checked"} />
+      </p>
+      {error && <div className="flash flash-error">{error}</div>}
+      <RoleGate need="write">
+        <div className="form-actions">
+          <button type="button" className="btn btn-secondary" disabled={!data?.configured || !hasBvn || busy !== null} onClick={() => run("BVN")}>{busy === "BVN" ? "Checking…" : "Check BVN"}</button>
+          <button type="button" className="btn btn-secondary" disabled={!data?.configured || !hasNin || busy !== null} onClick={() => run("NIN")}>{busy === "NIN" ? "Checking…" : "Check NIN"}</button>
+        </div>
+      </RoleGate>
+      {(data?.checks.length ?? 0) > 0 && (
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead><tr><th>Checked</th><th>ID</th><th>Result</th><th>Name on record</th><th>Name</th><th>Date of birth</th><th>Note</th><th>By</th></tr></thead>
+            <tbody>
+              {data!.checks.map((c) => (
+                <tr key={c.id}>
+                  <td>{c.checked_at}</td>
+                  <td>{c.id_type} …{c.number_last4}</td>
+                  <td><StatusBadge status={c.status} /></td>
+                  <td>{c.returned_name ?? "—"}</td>
+                  <td>{yesNo(c.name_match)}</td>
+                  <td>{yesNo(c.dob_match)}</td>
+                  <td>{c.message ?? "—"}</td>
+                  <td>{c.checked_by ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

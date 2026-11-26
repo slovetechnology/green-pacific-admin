@@ -152,7 +152,7 @@ export function RenewalMilestonesPage() {
       {board.data && (
         <div className="pl-board" role="group" aria-label="Renewals by milestone">
           {columns.map((column) => {
-            const inColumn = search.filtered.filter((i) => i.column === column);
+            const inColumn = (search.filtered ?? []).filter((i) => i.column === column);
             const premium = inColumn.reduce((s, i) => s + i.premium, 0);
             return (
               <section key={column} className={`pl-col${column === "Renewed" || column === "Lapsed" ? " is-closed" : ""}`} aria-label={column}>

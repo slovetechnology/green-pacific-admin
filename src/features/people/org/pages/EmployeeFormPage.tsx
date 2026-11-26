@@ -14,7 +14,7 @@ interface EmployeeDetail {
 }
 
 const EMPTY = {
-  staff_no: "", full_name: "", email: "", user_id: "", department_id: "", job_title: "", role_family: "",
+  staff_no: "", full_name: "", gender: "", email: "", user_id: "", department_id: "", job_title: "", role_family: "",
   line_manager_id: "", branch_id: "", hire_date: "", probation_end_date: "", confirmation_date: "",
   exit_date: "", exit_reason: "", status: "Probation",
 };
@@ -45,7 +45,7 @@ export function EmployeeFormPage() {
     if (!e) return;
     const s = (v: string | number | null) => (v === null || v === undefined ? "" : String(v));
     setForm({
-      staff_no: e.staff_no, full_name: e.full_name, email: s(e.email), user_id: s(e.user_id),
+      staff_no: e.staff_no, full_name: e.full_name, gender: s(e.gender), email: s(e.email), user_id: s(e.user_id),
       department_id: s(e.department_id), job_title: s(e.job_title), role_family: e.role_family,
       line_manager_id: s(e.line_manager_id), branch_id: s(e.branch_id), hire_date: s(e.hire_date),
       probation_end_date: s(e.probation_end_date), confirmation_date: s(e.confirmation_date),
@@ -143,6 +143,14 @@ export function EmployeeFormPage() {
                     <option key={x.id} value={x.id}>{x.name}</option>
                   ))}
               </select>
+            </div>
+            <div className="field">
+              <label htmlFor="gender">Gender</label>
+              <select id="gender" value={form.gender} onChange={set("gender")}>
+                <option value="">Not recorded</option>
+                {(m?.genders || ["Male", "Female"]).map((g) => <option key={g} value={g}>{g}</option>)}
+              </select>
+              <div className="field-hint">Reported on the NAICOM staff return.</div>
             </div>
             <div className="field">
               <label htmlFor="job_title">Job title</label>

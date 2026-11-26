@@ -107,9 +107,18 @@ export function CommissionStatementDetailPage() {
               {statement.deposit_reference ? ` (${statement.deposit_reference})` : ""}
             </div>
           </div>
+          {(totals.vatOnCommission !== 0 || totals.whtOnCommission !== 0) && (
+            <div>
+              <div className="k">Deposit to expect</div>
+              <div className="v">
+                {fmtMoney(totals.expectedDeposit)}
+                <div className="text-muted" style={{ fontSize: "0.8rem" }}>statement + VAT {fmtMoney(totals.vatOnCommission)} − WHT {fmtMoney(totals.whtOnCommission)}</div>
+              </div>
+            </div>
+          )}
           <div>
-            <div className="k">Deposit vs statement</div>
-            <div className="v">{totals.depositVsStatement === null ? "—" : fmtMoney(totals.depositVsStatement)}</div>
+            <div className="k">Deposit vs expected</div>
+            <div className="v">{totals.depositVsExpected === null ? "—" : fmtMoney(totals.depositVsExpected)}</div>
           </div>
         </div>
         <div className="toolbar">
@@ -347,9 +356,10 @@ function DepositForm({ statement, onSave }: { statement: StatementDetail["statem
 function ReconcileForm({ detail, onReconcile }: { detail: StatementDetail; onReconcile: (body: unknown) => Promise<boolean> }) {
   const [note, setNote] = useState("");
   const [accept, setAccept] = useState(false);
-  const { counts, depositVsStatement } = detail.totals;
+  const { counts, depositVsExpected } = detail.totals;
   const blocked = counts.Unmatched + counts.Ambiguous;
-  const gap = depositVsStatement !== null && Math.abs(depositVsStatement) > 1;
+  // Measured against the deposit to expect (statement + VAT - WHT), as the server does.
+  const gap = depositVsExpected !== null && Math.abs(depositVsExpected) > 0.004;
   return (
     <div className="card">
       <h2>Reconcile</h2>

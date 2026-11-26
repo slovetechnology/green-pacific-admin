@@ -47,6 +47,7 @@ interface Claim {
   adjuster_name: string | null;
   adjuster_phone: string | null;
   adjuster_email: string | null;
+  adjuster_id: number | null;
   handler_user_id: number | null;
 }
 
@@ -93,6 +94,8 @@ export function ClaimFormPage() {
   const [adjusterName, setAdjusterName] = useState("");
   const [adjusterPhone, setAdjusterPhone] = useState("");
   const [adjusterEmail, setAdjusterEmail] = useState("");
+  // The loss adjusters directory entry the claim is linked to (claims.adjuster_id); blank means typed by hand.
+  const [adjusterId, setAdjusterId] = useState("");
   // Blank on a new claim means "me" (the backend defaults to the creator).
   const [handlerUserId, setHandlerUserId] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -112,6 +115,7 @@ export function ClaimFormPage() {
   const adjusters = adjustersQuery.data?.lossAdjusters ?? [];
   function pickAdjuster(id: string) {
     const firm = adjusters.find((a) => String(a.id) === id);
+    setAdjusterId(firm ? String(firm.id) : "");
     if (!firm) return;
     setAdjusterName(firm.name);
     setAdjusterPhone([firm.office_phone, firm.mobile_phone].filter(Boolean).join(", "));
@@ -152,6 +156,7 @@ export function ClaimFormPage() {
       setAdjusterName(c.adjuster_name || "");
       setAdjusterPhone(c.adjuster_phone || "");
       setAdjusterEmail(c.adjuster_email || "");
+      setAdjusterId(c.adjuster_id ? String(c.adjuster_id) : "");
       setHandlerUserId(c.handler_user_id ? String(c.handler_user_id) : "");
     }
   }, [isEdit, editQuery.data]);
@@ -191,6 +196,7 @@ export function ClaimFormPage() {
       adjuster_name: adjusterName,
       adjuster_phone: adjusterPhone,
       adjuster_email: adjusterEmail,
+      adjuster_id: adjusterId ? Number(adjusterId) : null,
       handler_user_id: handlerUserId || null,
     };
     try {
@@ -416,7 +422,7 @@ export function ClaimFormPage() {
                 <label htmlFor="adjuster_pick">Pick a loss adjuster</label>
                 <select
                   id="adjuster_pick"
-                  value={String(adjusters.find((a) => a.name === adjusterName)?.id ?? "")}
+                  value={adjusterId || String(adjusters.find((a) => a.name === adjusterName)?.id ?? "")}
                   onChange={(e) => pickAdjuster(e.target.value)}
                 >
                   <option value="">Choose from the loss adjusters directory…</option>
@@ -431,7 +437,7 @@ export function ClaimFormPage() {
             )}
             <div className="field">
               <label htmlFor="adjuster_name">Adjuster Name</label>
-              <input id="adjuster_name" value={adjusterName} onChange={(e) => setAdjusterName(e.target.value)} />
+              <input id="adjuster_name" value={adjusterName} onChange={(e) => { setAdjusterName(e.target.value); setAdjusterId(""); }} />
             </div>
             <div className="field">
               <label htmlFor="adjuster_phone">Adjuster Phone</label>

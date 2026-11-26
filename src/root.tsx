@@ -4,6 +4,7 @@ import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration }
 import { queryClient } from "@/app/providers/queryClient";
 import { AuthProvider } from "@/features/platform/auth/AuthContext";
 import { installApiLinkDownloads } from "@/shared/api/client";
+import { AdTrackingProvider } from "@/shared/ads/AdTrackingProvider";
 import { applyTheme } from "@/shared/lib/theme";
 import "@/shared/styles/app.css";
 import "@/shared/styles/responsive.css";
@@ -58,7 +59,9 @@ export default function Root() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Outlet />
+        <AdTrackingProvider>
+          <Outlet />
+        </AdTrackingProvider>
       </AuthProvider>
       <DialogHost />
     </QueryClientProvider>

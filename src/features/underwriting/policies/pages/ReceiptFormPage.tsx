@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
-import { fmtMoney } from "@/shared/lib/format";
+import { fmtCurrency, fmtMoney } from "@/shared/lib/format";
 import { OverpaymentAllocationModal } from "@/features/underwriting/endorsement-engine/components/OverpaymentAllocationModal";
 import "@/shared/styles/endorsement-engine.css";
 
@@ -24,7 +24,15 @@ interface OpenTransaction {
   // anything already recorded as paid but never receipted. This, not
   // balance_os, is what an allocation is capped at.
   receiptable: number;
+  currency?: string;
+  fx_rate?: number;
+  insurer_name?: string | null;
+  proportion?: number | null;
+  // Set on each share of a co-insured policy (one transaction per insurer); shares of one policy share it.
+  placement_key?: string | null;
 }
+
+const shareLabel = (t: OpenTransaction) => (t.placement_key ? `${t.insurer_name ?? "Insurer"} ${Number(((t.proportion ?? 1) * 100).toFixed(4))}%` : t.insurer_name ?? "");
 
 interface AllocationRow {
   transaction_id: string;
@@ -46,6 +54,9 @@ export function ReceiptFormPage() {
   const [vatLevies, setVatLevies] = useState("");
   const [otherCharges, setOtherCharges] = useState("");
   const [narration, setNarration] = useState("");
+  // Currency (G8): a dollar, pound or euro receipt pays that currency's policies, in that currency.
+  const [currency, setCurrency] = useState("NGN");
+  const [fxRate, setFxRate] = useState("");
   const [allocations, setAllocations] = useState<AllocationRow[]>([{ transaction_id: "", amount: "" }]);
   // What the client actually transferred. Anything above the allocations + VAT + charges is an overpayment, held as
   // client credit (Client Unallocated Credit ledger, trust account) and settled in the allocation modal.
@@ -77,7 +88,10 @@ export function ReceiptFormPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openTxQuery.data]);
 
-  const openTransactions = openTxQuery.data?.transactions || [];
+  // In a foreign currency: only that currency's policies, with what is left to receipt in that currency.
+  const openTransactions = (openTxQuery.data?.transactions || [])
+    .filter((t) => currency === "NGN" || (t.currency || "NGN") === currency)
+    .map((t) => (currency === "NGN" || !t.fx_rate ? t : { ...t, receiptable: Math.round((t.receiptable / Number(t.fx_rate)) * 100) / 100 }));
   const premiumTotal = allocations.reduce((s, a) => s + (Number(a.amount) || 0), 0);
   const allocatedAmount = premiumTotal + (Number(vatLevies) || 0) + (Number(otherCharges) || 0);
   const received = amountReceived === "" ? allocatedAmount : Number(amountReceived) || 0;
@@ -91,6 +105,18 @@ export function ReceiptFormPage() {
 
   function addRow() {
     setAllocations((rows) => [...rows, { transaction_id: "", amount: "" }]);
+  }
+
+  // The other shares of a co-insured policy not yet on this receipt: a client pays the whole debit note.
+  function otherShares(tx: OpenTransaction | undefined) {
+    if (!tx?.placement_key) return [];
+    const chosen = new Set(allocations.map((r) => r.transaction_id));
+    return openTransactions.filter((t) => t.placement_key === tx.placement_key && !chosen.has(String(t.id)));
+  }
+
+  function addShares(tx: OpenTransaction) {
+    const extra = otherShares(tx).map((t) => ({ transaction_id: String(t.id), amount: String(t.receiptable) }));
+    setAllocations((rows) => [...rows.filter((r) => r.transaction_id), ...extra]);
   }
 
   function removeRow(index: number) {
@@ -128,6 +154,8 @@ export function ReceiptFormPage() {
         payment_reference: paymentReference,
         vat_levies: vatLevies,
         other_charges: otherCharges,
+        currency,
+        fx_rate: currency === "NGN" ? undefined : fxRate,
         narration,
         allocations: validRows.map((r) => ({ transaction_id: r.transaction_id, amount: r.amount })),
         unallocated_amount: excess,
@@ -187,6 +215,19 @@ export function ReceiptFormPage() {
               <label htmlFor="receipt_date">Receipt Date</label>
               <input id="receipt_date" type="date" required value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} />
             </div>
+            <div className="field">
+              <label htmlFor="receipt_currency">Currency</label>
+              <select id="receipt_currency" value={currency} onChange={(e) => { setCurrency(e.target.value); setAllocations([{ transaction_id: "", amount: "" }]); }}>
+                {["NGN", "USD", "GBP", "EUR"].map((c) => <option key={c} value={c}>{c === "NGN" ? "Naira (NGN)" : c}</option>)}
+              </select>
+            </div>
+            {currency !== "NGN" && (
+              <div className="field">
+                <label htmlFor="receipt_fx_rate">Rate received (NGN per {currency})</label>
+                <input id="receipt_fx_rate" inputMode="decimal" value={fxRate} onChange={(e) => setFxRate(e.target.value)} placeholder="Blank: the CBN rate on the receipt date" />
+                <small className="text-muted">Amounts are in {currency}. Any difference from each policy's booked rate is an exchange gain or loss.</small>
+              </div>
+            )}
             <div className="field">
               <label htmlFor="payment_method">Payment Method</label>
               <select id="payment_method" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
@@ -259,14 +300,27 @@ export function ReceiptFormPage() {
                             <option value="">— Select policy —</option>
                             {openTransactions.map((t) => (
                               <option key={t.id} value={t.id}>
-                                {t.policy_no || `#${t.id}`} — {t.class_of_business || "—"} (
-                                {t.balance_os > 0.01
+                                {t.policy_no || `#${t.id}`} — {t.class_of_business || "—"}
+                                {shareLabel(t) ? ` — ${t.placement_key ? "co-insured, " : ""}${shareLabel(t)}` : ""} (
+                                {currency !== "NGN"
+                                  ? `To receipt: ${fmtCurrency(t.receiptable, currency)}`
+                                  : t.balance_os > 0.01
                                   ? `Balance: ${fmtMoney(t.balance_os)}`
-                                  : `Paid — ${fmtMoney(t.receiptable)} to receipt`}
+                                  : `Paid — ${fmtCurrency(t.receiptable, currency)} to receipt`}
                                 )
                               </option>
                             ))}
                           </select>
+                          {otherShares(selected).length > 0 && (
+                            <div style={{ marginTop: "0.35rem" }}>
+                              <small>
+                                Co-insured: {otherShares(selected).map(shareLabel).join(", ")} {otherShares(selected).length === 1 ? "is" : "are"} not on this receipt.{" "}
+                              </small>
+                              <button type="button" className="btn-secondary btn btn-sm" onClick={() => selected && addShares(selected)}>
+                                Add {otherShares(selected).length === 1 ? "that share" : "those shares"}
+                              </button>
+                            </div>
+                          )}
                         </td>
                         <td className="num">
                           <input
@@ -299,7 +353,7 @@ export function ReceiptFormPage() {
                 <tfoot>
                   <tr>
                     <td><strong>Premium Total</strong></td>
-                    <td className="num"><strong>{fmtMoney(premiumTotal)}</strong></td>
+                    <td className="num"><strong>{fmtCurrency(premiumTotal, currency)}</strong></td>
                     <td></td>
                   </tr>
                   <tr>
@@ -325,7 +379,7 @@ export function ReceiptFormPage() {
                   )}
                   <tr>
                     <td><strong>Total Amount Received</strong></td>
-                    <td className="num"><strong>{fmtMoney(totalAmount)}</strong></td>
+                    <td className="num"><strong>{fmtCurrency(totalAmount, currency)}</strong></td>
                     <td></td>
                   </tr>
                 </tfoot>

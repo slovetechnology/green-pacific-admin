@@ -14,6 +14,8 @@ import { MetricStrip, type Metric } from "@/shared/components/exec/MetricStrip";
 import { Tabs, type TabDef } from "@/shared/components/exec/Tabs";
 import "@/shared/styles/executive.css";
 import { ScheduleView } from "../components/schedules/ScheduleView";
+import { NiidCheckPanel } from "../components/NiidCheckPanel";
+import { PolicyHistoryPanel } from "../components/PolicyHistoryPanel";
 import { REMINDER_LABELS, type PremiumInvoice } from "../lib/premiumInvoices";
 import { alertDialog, confirmDialog } from "@/shared/components/Dialogs";
 import { usePolicyModification } from "@/features/underwriting/endorsement-engine/usePolicyModification";
@@ -26,14 +28,18 @@ const SPLIT_TYPES = ["WritingAgent", "Referral", "Agency", "Other"] as const;
 interface CommissionSplit {
   splitType: (typeof SPLIT_TYPES)[number];
   payeeName: string | null;
+  producerId: number | null;
   percentage: number;
   amount: number;
 }
+
+interface SplitRow { splitType: string; payeeName: string; producerId: string; percentage: string }
 
 interface CommissionLedger {
   grossPremium: number;
   carrierNetPremium: number;
   agencyGrossCommission: number;
+  cancelled?: boolean;
   splits: CommissionSplit[];
   allocated: number;
   unallocated: number;
@@ -57,6 +63,11 @@ interface EndorsementsResponse {
 }
 
 interface Transaction {
+  currency?: string;
+  fx_rate?: number;
+  premium_due_fc?: number | null;
+  sum_insured_fc?: number | null;
+  brokerage_fc?: number | null;
   id: number;
   trans_date: string | null;
   credit_note_no: string | null;
@@ -70,6 +81,7 @@ interface Transaction {
   business_type: string | null;
   policy_no: string | null;
   sum_insured: number;
+  proportion?: number;
   annual_premium_due: number;
   start_date: string | null;
   end_date: string | null;
@@ -122,7 +134,11 @@ interface RiskItem {
 
 interface TransactionDetailResponse {
   transaction: Transaction;
+  // Set when the transaction is cancelled: its latest Cancellation event.
+  cancellation?: { reason: string; withPolicy: boolean; date: string | null; by: string | null } | null;
   riskItems: RiskItem[];
+  // The other insurers sharing this risk (co-insurance), each on its own row and credit note.
+  coinsurers?: { id: number; insurer_name: string | null; credit_note_no: string | null; proportion: number; sum_insured: number; premium_due: number }[];
   // The class-specific risk schedule (NIIRA 2025), if one is recorded.
   riskSchedule: { classKey: string; data: Record<string, unknown> } | null;
   // Set when this row is an endorsement adjustment note.
@@ -255,6 +271,7 @@ export function TransactionDetailPage() {
   const tabs: TabDef[] = [
     { id: "overview", label: "Overview" },
     { id: "commission", label: "Commission splits" },
+    { id: "history", label: "Policy history" },
     ...(parent ? [] : [{ id: "endorsements", label: "Endorsements", count: data.endorsementNotes.length }]),
     ...(parent || !pbAccess.hasAny ? [] : [{ id: "wording", label: "Policy wording" }]),
     { id: "ledger", label: "Ledger timeline" },
@@ -324,6 +341,17 @@ export function TransactionDetailPage() {
         </RoleGate>
       </header>
 
+      {data.cancellation && (
+        <div className="flash flash-warning" role="status">
+          <strong>Cancelled{data.cancellation.date ? ` on ${data.cancellation.date.slice(0, 10)}` : ""}</strong>
+          {data.cancellation.by ? ` by ${data.cancellation.by}` : ""}. Reason: {data.cancellation.reason.replace(/\.$/, "")}.
+          {data.cancellation.withPolicy && parent && (
+            <> See the cancelled policy <Link to={`/transactions/${parent.id}`}>{parent.policy_no || parent.credit_note_no || `#${parent.id}`}</Link>.</>
+          )}{" "}
+          Its premium and commission are not counted as income.
+        </div>
+      )}
+
       {parent && (
         <div className="flash flash-info">
           Endorsement note for policy{" "}
@@ -389,6 +417,18 @@ export function TransactionDetailPage() {
             <div className="k">Billing</div>
             <div className="v">{t.billing_mode === "Direct" ? "Direct Bill (insurer collects)" : "Agency Bill"}</div>
           </div>
+          {t.currency && t.currency !== "NGN" && (
+            <div>
+              <div className="k">Currency</div>
+              <div className="v">
+                {t.currency} at NGN {Number(t.fx_rate).toLocaleString("en-NG", { maximumFractionDigits: 6 })}
+                <div className="text-muted" style={{ fontSize: "0.85rem" }}>
+                  Premium {t.currency} {Number(t.premium_due_fc ?? 0).toLocaleString("en-NG", { minimumFractionDigits: 2 })}
+                  {t.sum_insured_fc ? `, sum insured ${t.currency} ${Number(t.sum_insured_fc).toLocaleString("en-NG", { minimumFractionDigits: 2 })}` : ""}. Amounts on this page are naira.
+                </div>
+              </div>
+            </div>
+          )}
           {t.billing_mode !== "Direct" && (
             <div>
               <div className="k">Premium due by</div>
@@ -413,6 +453,7 @@ export function TransactionDetailPage() {
       {!data.transaction.parent_transaction_id && (
         <ScheduleView classOfBusiness={data.transaction.class_of_business ?? ""} riskSchedule={data.riskSchedule ?? null} />
       )}
+      {!data.transaction.parent_transaction_id && <NiidCheckPanel txId={Number(txId)} />}
 
       <div className="card">
         <h2>Financials</h2>
@@ -483,6 +524,29 @@ export function TransactionDetailPage() {
             <div className="v">{t.date_of_payment || "—"}</div>
           </div>
         </div>
+        {(data.coinsurers?.length ?? 0) > 0 && (
+          <>
+            <div className="section-title">Co-insurance on debit note {t.debit_note_no}</div>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Insurer</th><th>Credit note</th><th>Share</th><th>Sum insured</th><th>Premium</th></tr>
+                </thead>
+                <tbody>
+                  {[{ id: t.id, insurer_name: t.insurer_name ?? null, credit_note_no: t.credit_note_no ?? null, proportion: t.proportion ?? 1, sum_insured: t.sum_insured, premium_due: t.premium_due }, ...(data.coinsurers ?? [])].map((c) => (
+                    <tr key={c.id}>
+                      <td data-label="Insurer">{c.id === t.id ? <strong>{c.insurer_name} (this transaction)</strong> : <Link to={`/transactions/${c.id}`}>{c.insurer_name}</Link>}</td>
+                      <td data-label="Credit note">{c.credit_note_no || "—"}</td>
+                      <td data-label="Share">{Number(((c.proportion ?? 1) * 100).toFixed(4))}%</td>
+                      <td data-label="Sum insured">{fmtMoney(c.sum_insured)}</td>
+                      <td data-label="Premium">{fmtMoney(c.premium_due)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
         {effectiveTerms && (
           <>
             <div className="section-title">Effective terms including endorsements</div>
@@ -586,6 +650,12 @@ export function TransactionDetailPage() {
         </div>
       )}
 
+      {tab === "history" && (
+        <div role="tabpanel" id="tx-panel-history" aria-labelledby="tx-tab-history" tabIndex={0} className="exec-tabpanel">
+          <PolicyHistoryPanel txId={Number(txId)} clientId={Number(t.client_id)} classOfBusiness={t.class_of_business ?? null} />
+        </div>
+      )}
+
       {tab === "wording" && !parent && (
         <div role="tabpanel" id="tx-panel-wording" aria-labelledby="tx-tab-wording" tabIndex={0} className="exec-tabpanel">
           <PolicyWordingPanel transactionId={Number(txId)} />
@@ -614,7 +684,10 @@ export function TransactionDetailPage() {
 // (lib/commissionSplits.js) — this panel only edits percentages.
 function CommissionSplitsPanel({ txId }: { txId: string }) {
   const queryClient = useQueryClient();
-  const [rows, setRows] = useState<{ splitType: string; payeeName: string; percentage: string }[] | null>(null);
+  const [rows, setRows] = useState<SplitRow[] | null>(null);
+  // Producers on file: a split that names one is what Producer commission pays them.
+  const producersQuery = useQuery({ queryKey: ["producers"], queryFn: () => api.get<{ producers: { id: number; name: string; active: number }[] }>("/api/producers") });
+  const producers = producersQuery.data?.producers ?? [];
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -625,23 +698,23 @@ function CommissionSplitsPanel({ txId }: { txId: string }) {
 
   const editing = rows !== null;
   const displayRows =
-    rows ?? (data?.splits.map((s) => ({ splitType: s.splitType, payeeName: s.payeeName || "", percentage: String(s.percentage) })) || []);
+    rows ?? (data?.splits.map((s) => ({ splitType: s.splitType, payeeName: s.payeeName || "", producerId: s.producerId ? String(s.producerId) : "", percentage: String(s.percentage) })) || []);
 
   function startEditing() {
     setError(null);
     setRows(
       data?.splits.length
-        ? data.splits.map((s) => ({ splitType: s.splitType, payeeName: s.payeeName || "", percentage: String(s.percentage) }))
-        : [{ splitType: "WritingAgent", payeeName: "", percentage: "" }]
+        ? data.splits.map((s) => ({ splitType: s.splitType, payeeName: s.payeeName || "", producerId: s.producerId ? String(s.producerId) : "", percentage: String(s.percentage) }))
+        : [{ splitType: "WritingAgent", payeeName: "", producerId: "", percentage: "" }]
     );
   }
 
-  function updateRow(index: number, patch: Partial<{ splitType: string; payeeName: string; percentage: string }>) {
+  function updateRow(index: number, patch: Partial<SplitRow>) {
     setRows((prev) => prev!.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   }
 
   function addRow() {
-    setRows((prev) => [...(prev || []), { splitType: "Referral", payeeName: "", percentage: "" }]);
+    setRows((prev) => [...(prev || []), { splitType: "Referral", payeeName: "", producerId: "", percentage: "" }]);
   }
 
   function removeRow(index: number) {
@@ -656,6 +729,7 @@ function CommissionSplitsPanel({ txId }: { txId: string }) {
         splits: (rows || []).map((row) => ({
           splitType: row.splitType,
           payeeName: row.payeeName || null,
+          producerId: row.producerId ? Number(row.producerId) : null,
           percentage: Number(row.percentage) || 0,
         })),
       });
@@ -694,6 +768,12 @@ function CommissionSplitsPanel({ txId }: { txId: string }) {
         <p>Loading…</p>
       ) : (
         <>
+          {data?.cancelled && (
+            <div className="flash flash-info">
+              This transaction is cancelled, so its premium and commission are not income and the splits pay nothing.
+              Reinstating it brings them back.
+            </div>
+          )}
           <div className="detail-grid">
             <div>
               <div className="k">Gross premium</div>
@@ -740,7 +820,17 @@ function CommissionSplitsPanel({ txId }: { txId: string }) {
                         </select>
                       </td>
                       <td>
-                        <input value={row.payeeName} onChange={(e) => updateRow(index, { payeeName: e.target.value })} />
+                        <select
+                          aria-label="Producer"
+                          value={row.producerId}
+                          onChange={(e) => updateRow(index, { producerId: e.target.value, payeeName: producers.find((p) => String(p.id) === e.target.value)?.name ?? row.payeeName })}
+                        >
+                          <option value="">Not a producer (name below)</option>
+                          {producers.map((p) => <option key={p.id} value={p.id}>{p.name}{p.active ? "" : " (inactive)"}</option>)}
+                        </select>
+                        {!row.producerId && (
+                          <input style={{ marginTop: "0.35rem" }} aria-label="Payee name" placeholder="Payee name" value={row.payeeName} onChange={(e) => updateRow(index, { payeeName: e.target.value })} />
+                        )}
                       </td>
                       <td className="num">
                         <input

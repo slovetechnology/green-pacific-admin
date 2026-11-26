@@ -61,7 +61,7 @@ export function ClientMessagesPage() {
           <p className="eyebrow">Inbox</p>
           <h1>Client Messages</h1>
           <p style={{ color: "var(--text-muted)", margin: "0.25rem 0 0" }}>
-            Conversations with clients by email, plus copies of the receipts, renewal notices and quote acknowledgements emailed to them.
+            Conversations with clients from the customer portal, plus copies of the receipts, renewal notices and quote acknowledgements emailed to them.
           </p>
         </div>
         <RoleGate need="write">

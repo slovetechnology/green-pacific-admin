@@ -99,7 +99,7 @@ export function ClientMessageThreadPage() {
                 setNotice(null);
                 const res = await api.upload<{ emailStatus: string | null }>(`/api/client-messages/${threadId}/messages`, form);
                 await refresh();
-                setNotice(form.get("kind") === "note" ? "Note saved. The client can't see it." : res.emailStatus ? `Reply saved. ${res.emailStatus.replace(/\.$/, "")}.` : "Reply saved to the conversation (not emailed).");
+                setNotice(form.get("kind") === "note" ? "Note saved. The client can't see it." : res.emailStatus ? `Reply saved to the portal. ${res.emailStatus.replace(/\.$/, "")}.` : "Reply saved to the client's portal (not emailed).");
               }}
             />
           ) : (

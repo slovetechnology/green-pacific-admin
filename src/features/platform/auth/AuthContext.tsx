@@ -22,7 +22,12 @@ export interface CurrentUser {
   // "hr" role; it gates the People & Org pages.
   appraisalRoles: string[];
   isHr: boolean;
+  // Two-factor sign-in became required for them after they signed in: the app asks them to set it up first.
+  mfaSetupRequired?: boolean;
 }
+
+/** What the password step leads to: signed in, or a two-factor step (a code, or setting it up). */
+export type LoginStep = "done" | "verify" | "setup";
 
 interface MeResponse {
   user: CurrentUser | null;
@@ -33,7 +38,9 @@ interface AuthContextValue {
   user: CurrentUser | null;
   isLoading: boolean;
   portalPendingCount: number;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<LoginStep>;
+  // After the two-factor step: confirm the session and show the app.
+  finishSignIn: () => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -47,8 +54,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryFn: () => api.get<MeResponse>("/api/auth/me"),
   });
 
-  async function login(email: string, password: string) {
-    await api.post<{ user: CurrentUser }>("/api/auth/login", { email, password });
+  async function login(email: string, password: string): Promise<LoginStep> {
+    const res = await api.post<{ user?: CurrentUser; mfa?: "verify" | "setup" }>("/api/auth/login", { email, password });
+    if (res.mfa) return res.mfa;
+    await finishSignIn();
+    return "done";
+  }
+
+  async function finishSignIn() {
     // Confirm the browser kept the session cookie. A browser that blocks the API's cookie (a
     // third-party cookie when the site and the API are on different sites) accepts the login reply
     // but sends no cookie afterwards, so every page would fail as "not signed in".
@@ -78,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         portalPendingCount: data?.portalPendingCount ?? 0,
         isLoading,
         login,
+        finishSignIn,
         logout,
         refresh,
       }}

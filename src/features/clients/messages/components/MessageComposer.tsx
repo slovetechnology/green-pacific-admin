@@ -143,7 +143,7 @@ export function MessageComposer({
               <option key={s.email} value={s.email}>{s.name}</option>
             ))}
           </datalist>
-          <small className="msg-help">The client receives the message by email. Leave this blank to save it to the conversation without emailing.</small>
+          <small className="msg-help">The message is always saved to the client's portal. Leave this blank to save it without emailing.</small>
         </div>
       )}
       <div className="msg-attach">

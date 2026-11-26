@@ -14,6 +14,7 @@ interface FaqClass {
   exceptions: string[];
   extensions: string[];
   other: string[];
+  faqs?: FaqItem[];
 }
 interface FaqCategory {
   name: string;
@@ -23,6 +24,11 @@ interface FaqResponse {
   generalFaq: FaqItem[];
   categories: FaqCategory[];
   nClasses: number;
+}
+
+// A class matches a search on its name, its summary or any of its common questions and answers.
+function classText(c: FaqClass) {
+  return [c.name, c.summary, ...(c.faqs ?? []).flatMap((f) => [f.q, f.a])].join(" ").toLowerCase();
 }
 
 export function FaqPage() {
@@ -44,7 +50,7 @@ export function FaqPage() {
     () =>
       categories.map((cat) => ({
         ...cat,
-        classes: cat.classes.filter((c) => !q || c.name.toLowerCase().includes(q)),
+        classes: cat.classes.filter((c) => !q || classText(c).includes(q)),
       })),
     [categories, q]
   );
@@ -69,7 +75,7 @@ export function FaqPage() {
       <div className="faq-search-bar">
         <input
           type="search"
-          placeholder="Search questions or a class of business…"
+          placeholder="Search questions, answers or a class of business…"
           autoComplete="off"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -137,6 +143,17 @@ export function FaqPage() {
                           </div>
                         )}
                       </div>
+                      {(c.faqs?.length ?? 0) > 0 && (
+                        <div className="faq-class-questions">
+                          <h4>Common questions</h4>
+                          {c.faqs!.map((f) => (
+                            <div className="faq-class-qa" key={f.q}>
+                              <p className="faq-class-q">{f.q}</p>
+                              <p>{f.a}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </details>
                   ))}
                 </div>

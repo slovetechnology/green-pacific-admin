@@ -80,12 +80,14 @@ export function CampaignDetailPage() {
     setError(null);
     setBusy(true);
     try {
-      const result = await api.post<{ sentCount: number; emailCount: number; channel: string }>(`/api/campaigns/${campaignId}/send`, {
+      const result = await api.post<{ sentCount: number; emailCount: number; textCount?: number; failedCount?: number; channel: string }>(`/api/campaigns/${campaignId}/send`, {
         subject: subject || campaign.name, body_html: bodyHtml, body_text: bodyText,
       });
       await refresh();
       if (result.channel === "Email") {
         void alertDialog(`Marked ${result.sentCount} recipient(s) as sent — ${result.emailCount} actual email(s) sent through Resend (the rest had no email on file, or Resend isn't configured).`);
+      } else if (result.channel === "SMS" && result.textCount !== undefined && (result.textCount > 0 || (result.failedCount ?? 0) > 0)) {
+        void alertDialog(`${result.textCount} text message(s) sent through Termii; ${result.failedCount ?? 0} failed. Only clients with a mobile number on file and marketing consent get a text; everyone else is marked sent in the CRM.`);
       } else {
         void alertDialog(`Logged ${result.sentCount} ${result.channel} send(s) in the CRM — no live ${result.channel} provider is configured, so nothing was actually transmitted.`);
       }
@@ -172,7 +174,11 @@ export function CampaignDetailPage() {
                 </>
               ) : (
                 <div className="field span-3">
-                  <label htmlFor="body_text">Message content (logged only — no {campaign.channel} provider is configured)</label>
+                  <label htmlFor="body_text">
+                    {campaign.channel === "SMS"
+                      ? "Text message (sent through Termii when it is set up, to clients with a mobile number and marketing consent)"
+                      : `Message content (logged only — no ${campaign.channel} provider is configured)`}
+                  </label>
                   <textarea id="body_text" rows={3} value={bodyText} onChange={(e) => setBodyText(e.target.value)} />
                 </div>
               )}

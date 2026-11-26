@@ -113,6 +113,8 @@ export function LedgerSettingsPage() {
       </div>
 
       <CommissionDefaults canEdit={data.canEdit} />
+      <CommissionTaxRates canEdit={data.canEdit} />
+      <LevyRates canEdit={data.canEdit} />
       <FxRates onAdded={() => act(async () => undefined, "Rate added.")} />
       {data.canManageRoles && <Grants roles={data.roles} />}
     </div>
@@ -382,6 +384,148 @@ function CommissionDefaults({ canEdit }: { canEdit: boolean }) {
           <div className="toolbar">
             <button type="submit" className="btn btn-sm">Save</button>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditing(null)}>Cancel</button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
+interface TaxRate { id: number; code: "VAT" | "WHT"; rate_bps: number; effective_from: string; note: string | null; created_by: string | null }
+
+// VAT and WHT on brokerage commission (backend finance/tax). A rate applies to policies transacted on or after its date;
+// a change is a new rate from a date, never an edit, so earlier policies keep the rate they were placed under.
+function CommissionTaxRates({ canEdit }: { canEdit: boolean }) {
+  const queryClient = useQueryClient();
+  const { data } = useQuery({ queryKey: ["commission-tax-rates"], queryFn: () => api.get<{ rates: TaxRate[] }>("/api/commission-tax-rates") });
+  const [form, setForm] = useState({ code: "VAT", rate_percent: "", effective_from: "", note: "" });
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    try {
+      await api.post("/api/commission-tax-rates", form);
+      setAdding(false);
+      setForm({ code: "VAT", rate_percent: "", effective_from: "", note: "" });
+      await queryClient.invalidateQueries({ queryKey: ["commission-tax-rates"] });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not save.");
+    }
+  }
+  return (
+    <div className="card">
+      <h2>Tax on commission</h2>
+      <p className="ledger-note">
+        VAT the broker charges on its brokerage, and withholding tax the insurer deducts from it. Each rate applies to policies
+        transacted from its date: receipts and commission deposits post the VAT and WHT, and credit notes print the net premium
+        payable (gross premium less commission and VAT, plus WHT).
+      </p>
+      {error && <div className="flash flash-error">{error}</div>}
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead><tr><th>Tax</th><th className="num">Rate</th><th>From</th><th>Note</th><th>Added by</th></tr></thead>
+          <tbody>
+            {(data?.rates ?? []).map((r) => (
+              <tr key={r.id}><td>{r.code}</td><td className="num">{r.rate_bps / 100}%</td><td>{r.effective_from}</td><td>{r.note ?? "—"}</td><td>{r.created_by ?? "—"}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {canEdit && !adding && <div className="form-actions"><button type="button" className="btn btn-secondary" onClick={() => setAdding(true)}>New rate from a date</button></div>}
+      {adding && (
+        <form onSubmit={save} noValidate>
+          <div className="form-grid">
+            <div className="field"><label htmlFor="tx_code">Tax</label><select id="tx_code" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })}><option>VAT</option><option>WHT</option></select></div>
+            <div className="field"><label htmlFor="tx_rate">Rate (%)</label><input id="tx_rate" inputMode="decimal" value={form.rate_percent} onChange={(e) => setForm({ ...form, rate_percent: e.target.value })} /></div>
+            <div className="field"><label htmlFor="tx_from">Applies to policies from</label><input id="tx_from" type="date" value={form.effective_from} onChange={(e) => setForm({ ...form, effective_from: e.target.value })} /></div>
+            <div className="field"><label htmlFor="tx_note">Note</label><input id="tx_note" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></div>
+          </div>
+          <div className="form-actions">
+            <button type="submit" className="btn">Save rate</button>
+            <button type="button" className="btn btn-secondary" onClick={() => setAdding(false)}>Cancel</button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
+interface LevyRate {
+  id: number; code: string; name: string; amount_kobo: number; rate_bps: number; threshold_kobo: number; electronic_only: number;
+  effective_from: string; note: string | null; created_by: string | null;
+}
+const naira = (kobo: number) => `NGN ${(kobo / 100).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
+const BLANK_LEVY = { code: "", name: "", amount: "", rate_percent: "", threshold: "", electronic_only: true, effective_from: "", note: "" };
+
+// Stamp duty and other levies the bank deducts from money received (backend finance/tax/levies.js). The ledger posts each
+// receipt's levy to Stamp duty and levies (5246); a change, or stopping a levy (amounts 0), is a new row from a date.
+function LevyRates({ canEdit }: { canEdit: boolean }) {
+  const queryClient = useQueryClient();
+  const { data } = useQuery({ queryKey: ["levy-rates"], queryFn: () => api.get<{ levies: LevyRate[] }>("/api/levy-rates") });
+  const [form, setForm] = useState(BLANK_LEVY);
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    try {
+      await api.post("/api/levy-rates", form);
+      setAdding(false);
+      setForm(BLANK_LEVY);
+      await queryClient.invalidateQueries({ queryKey: ["levy-rates"] });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not save.");
+    }
+  }
+  return (
+    <div className="card">
+      <h2>Stamp duty and levies</h2>
+      <p className="ledger-note">
+        Charges the bank deducts from money received: a fixed amount plus a percentage, on receipts at or above the threshold
+        (electronic payments only, unless the row says otherwise). The receipt is banked less the levy, which is posted as an
+        expense. The tax adviser should confirm the rows.
+      </p>
+      {error && <div className="flash flash-error">{error}</div>}
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead><tr><th>Levy</th><th className="num">Fixed</th><th className="num">Rate</th><th className="num">From receipts of</th><th>Payments</th><th>From</th><th>Note</th></tr></thead>
+          <tbody>
+            {(data?.levies ?? []).map((r) => (
+              <tr key={r.id}>
+                <td>{r.name} <span className="muted">({r.code})</span></td>
+                <td className="num">{naira(r.amount_kobo)}</td>
+                <td className="num">{r.rate_bps / 100}%</td>
+                <td className="num">{naira(r.threshold_kobo)}</td>
+                <td>{r.electronic_only ? "Electronic" : "All"}</td>
+                <td>{r.effective_from}</td>
+                <td>{r.note ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {canEdit && !adding && <div className="form-actions"><button type="button" className="btn btn-secondary" onClick={() => setAdding(true)}>New levy row from a date</button></div>}
+      {adding && (
+        <form onSubmit={save} noValidate>
+          <div className="form-grid">
+            <div className="field"><label htmlFor="lv_code">Code</label><input id="lv_code" placeholder="STAMP_DUTY" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} /></div>
+            <div className="field"><label htmlFor="lv_name">Name (blank keeps the code's name)</label><input id="lv_name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+            <div className="field"><label htmlFor="lv_amount">Fixed amount (NGN)</label><input id="lv_amount" inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div>
+            <div className="field"><label htmlFor="lv_rate">Rate (%)</label><input id="lv_rate" inputMode="decimal" value={form.rate_percent} onChange={(e) => setForm({ ...form, rate_percent: e.target.value })} /></div>
+            <div className="field"><label htmlFor="lv_threshold">On receipts of at least (NGN)</label><input id="lv_threshold" inputMode="decimal" value={form.threshold} onChange={(e) => setForm({ ...form, threshold: e.target.value })} /></div>
+            <div className="field">
+              <label htmlFor="lv_electronic">Payments</label>
+              <select id="lv_electronic" value={form.electronic_only ? "1" : "0"} onChange={(e) => setForm({ ...form, electronic_only: e.target.value === "1" })}>
+                <option value="1">Electronic only</option><option value="0">All payments</option>
+              </select>
+            </div>
+            <div className="field"><label htmlFor="lv_from">Applies from</label><input id="lv_from" type="date" value={form.effective_from} onChange={(e) => setForm({ ...form, effective_from: e.target.value })} /></div>
+            <div className="field"><label htmlFor="lv_note">Note</label><input id="lv_note" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></div>
+          </div>
+          <div className="form-actions">
+            <button type="submit" className="btn">Save levy</button>
+            <button type="button" className="btn btn-secondary" onClick={() => setAdding(false)}>Cancel</button>
           </div>
         </form>
       )}

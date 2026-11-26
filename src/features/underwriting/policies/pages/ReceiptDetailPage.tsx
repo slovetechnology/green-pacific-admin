@@ -38,12 +38,16 @@ interface Allocation {
   class_of_business: string | null;
   insurer_name: string;
   balance_os: number;
+  proportion?: number;
+  // Set when the policy is co-insured: every insurer's share (one transaction each).
+  coinsurance?: { id: number; insurer: string; proportion: number }[];
 }
 
 interface Response {
   receipt: Receipt;
   client: Client;
   allocations: Allocation[];
+  levies?: { code: string; name: string; amount: number }[];
 }
 
 export function ReceiptDetailPage() {
@@ -165,6 +169,12 @@ export function ReceiptDetailPage() {
             <div className="k">Total Amount Received</div>
             <div className="v"><strong>{fmtMoney(receipt.total_amount)}</strong></div>
           </div>
+          {(data.levies ?? []).map((l) => (
+            <div key={l.code}>
+              <div className="k">{l.name} (deducted by the bank)</div>
+              <div className="v">{fmtMoney(l.amount)}</div>
+            </div>
+          ))}
         </div>
         {receipt.narration && (
           <>
@@ -194,7 +204,10 @@ export function ReceiptDetailPage() {
                     <Link to={`/transactions/${a.transaction_id}`}>{a.policy_no || `#${a.transaction_id}`}</Link>
                   </td>
                   <td>{a.debit_note_no || "—"}</td>
-                  <td>{a.insurer_name}</td>
+                  <td>
+                    {a.insurer_name}
+                    {a.coinsurance && <small> ({Number(((a.proportion ?? 1) * 100).toFixed(4))}% share, co-insured)</small>}
+                  </td>
                   <td>{a.class_of_business || "—"}</td>
                   <td className="num">{fmtMoney(a.amount)}</td>
                 </tr>

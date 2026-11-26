@@ -17,6 +17,20 @@ export interface PremiumInvoice {
   isOverdue: boolean;
   policies: { transactionId: number; policyNo: string | null; classOfBusiness: string | null; insurerName: string; balanceOs: number }[];
   reminders: Reminder[];
+  chaseAmount?: number;
+  plan?: PremiumPlan | null;
+}
+
+// An instalment plan on the invoice (G9): payments are counted against the instalments in order.
+export interface PremiumPlan {
+  id: number;
+  total: number;
+  paid: number;
+  outsidePlan: number;
+  notes: string | null;
+  created_by: string;
+  instalments: { seq: number; due_date: string; amount: number; paid: number; unpaid: number; state: string }[];
+  current: { seq: number; due_date: string; unpaid: number } | null;
 }
 
 export interface PremiumInvoicesResponse {

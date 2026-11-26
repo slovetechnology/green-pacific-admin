@@ -23,6 +23,11 @@ interface ClaimRow {
   adjuster_name: string | null;
   // The loss adjusters directory firm the adjuster name matches, if any.
   loss_adjuster: { id: number; adjuster_ref: string | null } | null;
+  // The policy's insurer, or every insurer of a co-insured policy with its share.
+  insurers?: string | null;
+  coinsured?: boolean;
+  sla_overdue?: number;
+  sla_next?: { label: string; due: string; state: string } | null;
 }
 
 interface Response {
@@ -45,7 +50,13 @@ interface ClaimDetail {
     insurer_claim_no: string | null;
     date_notified_to_insurer: string | null;
   };
-  transaction: { id: number; policy_no: string | null; class_of_business: string | null } | null;
+  transaction: {
+    id: number;
+    policy_no: string | null;
+    class_of_business: string | null;
+    insurer_name?: string | null;
+    coinsurance?: { id: number; insurer: string; proportion: number }[] | null;
+  } | null;
   events: { id: number; event_date: string | null; status: string | null; note: string | null; created_by: string | null }[];
   documents: unknown[];
 }
@@ -70,6 +81,14 @@ function ClaimDrawerBody({ row }: { row: ClaimRow }) {
         <div className="exec-field">
           <dt>Policy</dt>
           <dd>{data.transaction ? <Link to={`/transactions/${data.transaction.id}`}>{data.transaction.policy_no || `#${data.transaction.id}`}</Link> : "Not linked"}</dd>
+        </div>
+        <div className="exec-field">
+          <dt>{data.transaction?.coinsurance ? "Insurers (co-insured)" : "Insurer"}</dt>
+          <dd>
+            {data.transaction?.coinsurance
+              ? data.transaction.coinsurance.map((m) => `${m.insurer} (${Number((m.proportion * 100).toFixed(4))}%)`).join(", ")
+              : data.transaction?.insurer_name || "—"}
+          </dd>
         </div>
         <div className="exec-field"><dt>Loss type</dt><dd>{c.loss_type || "—"}</dd></div>
         <div className="exec-field"><dt>Date of loss</dt><dd>{row.date_of_loss || "—"}</dd></div>
@@ -137,6 +156,11 @@ export function ClaimsListPage() {
   const columns: DataGridColumn<ClaimRow>[] = [
     { key: "claim_no", header: "Claim No", render: (c) => <Link to={`/claims/${c.id}`}>{c.claim_no}</Link> },
     { key: "client", header: "Client", render: (c) => c.client_name },
+    {
+      key: "insurer",
+      header: "Insurer",
+      render: (c) => (c.coinsured ? <span title="The loss is shared by the insurers in proportion to their shares">Co-insured: {c.insurers}</span> : c.insurers || "—"),
+    },
     { key: "source", header: "Source", render: (c) => (c.source === "Portal" ? "Self-reported" : "Staff") },
     { key: "date_of_loss", header: "Date of Loss", render: (c) => c.date_of_loss || "—" },
     { key: "date_reported", header: "Date Reported", render: (c) => c.date_reported || "—" },
@@ -163,6 +187,18 @@ export function ClaimsListPage() {
         ),
     },
     { key: "status", header: "Status", render: (c) => <StatusBadge status={c.status} /> },
+    {
+      key: "service",
+      header: "Service",
+      render: (c) =>
+        c.sla_overdue ? (
+          <span className="badge badge-cancelled" title={c.sla_next ? `${c.sla_next.label}, due ${c.sla_next.due}` : undefined}>{c.sla_overdue} overdue</span>
+        ) : c.sla_next ? (
+          <span className="text-muted" style={{ fontSize: "0.85rem" }}>{c.sla_next.label} by {c.sla_next.due}</span>
+        ) : (
+          "—"
+        ),
+    },
     {
       key: "preview",
       header: <span className="sr-only">Preview</span>,

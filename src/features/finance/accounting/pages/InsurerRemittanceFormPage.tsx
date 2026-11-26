@@ -21,6 +21,13 @@ interface Remittance {
   gross_premium: number;
   commission: number;
   net_premium: number;
+  currency?: string;
+  fx_rate?: number;
+  booked_fx_rate?: number;
+  gross_premium_fc?: number | null;
+  commission_fc?: number | null;
+  net_premium_fc?: number | null;
+  fx_difference?: number;
   status: string;
   remitted_date: string | null;
   reference_no: string | null;
@@ -43,6 +50,10 @@ export function InsurerRemittanceFormPage() {
   const [grossPremium, setGrossPremium] = useState("0");
   const [commission, setCommission] = useState("0");
   const [netPremium, setNetPremium] = useState("0");
+  // Currency (G8): a foreign remittance is entered in its currency; the naira booked and paid are worked out.
+  const [currency, setCurrency] = useState("NGN");
+  const [bookedRate, setBookedRate] = useState("");
+  const [paidRate, setPaidRate] = useState("");
   const [status, setStatus] = useState("Unremitted");
   const [remittedDate, setRemittedDate] = useState("");
   const [referenceNo, setReferenceNo] = useState("");
@@ -69,9 +80,13 @@ export function InsurerRemittanceFormPage() {
       setCreditNoteNo(r.credit_note_no || "");
       setPeriodStart(r.period_start.slice(0, 10));
       setPeriodEnd(r.period_end.slice(0, 10));
-      setGrossPremium(String(r.gross_premium));
-      setCommission(String(r.commission));
-      setNetPremium(String(r.net_premium));
+      const foreign = Boolean(r.currency) && r.currency !== "NGN";
+      setCurrency(r.currency || "NGN");
+      setBookedRate(foreign ? String(r.booked_fx_rate) : "");
+      setPaidRate(foreign ? String(r.fx_rate) : "");
+      setGrossPremium(String(foreign ? r.gross_premium_fc : r.gross_premium));
+      setCommission(String(foreign ? r.commission_fc : r.commission));
+      setNetPremium(String(foreign ? r.net_premium_fc : r.net_premium));
       setStatus(r.status);
       setRemittedDate(r.remitted_date ? r.remitted_date.slice(0, 10) : "");
       setReferenceNo(r.reference_no || "");
@@ -87,6 +102,7 @@ export function InsurerRemittanceFormPage() {
       insurer_id: insurerId, period_start: periodStart, period_end: periodEnd,
       client_id: clientId || null, credit_note_no: creditNoteNo || null,
       gross_premium: grossPremium, commission, net_premium: netPremium,
+      currency, booked_fx_rate: currency === "NGN" ? undefined : bookedRate, fx_rate: currency === "NGN" ? undefined : paidRate,
       status, remitted_date: remittedDate || null, reference_no: referenceNo, notes,
     };
     try {
@@ -159,6 +175,25 @@ export function InsurerRemittanceFormPage() {
               <label htmlFor="period_end">Period end</label>
               <input id="period_end" type="date" required value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} />
             </div>
+            <div className="field">
+              <label htmlFor="rem_currency">Currency</label>
+              <select id="rem_currency" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+                {["NGN", "USD", "GBP", "EUR"].map((c) => <option key={c} value={c}>{c === "NGN" ? "Naira (NGN)" : c}</option>)}
+              </select>
+            </div>
+            {currency !== "NGN" && (
+              <>
+                <div className="field">
+                  <label htmlFor="rem_booked">Rate booked at (NGN per {currency})</label>
+                  <input id="rem_booked" inputMode="decimal" value={bookedRate} onChange={(e) => setBookedRate(e.target.value)} placeholder="Blank: the credit note's policy rate" />
+                </div>
+                <div className="field">
+                  <label htmlFor="rem_paid">Rate paid at (NGN per {currency})</label>
+                  <input id="rem_paid" inputMode="decimal" value={paidRate} onChange={(e) => setPaidRate(e.target.value)} placeholder="Blank: the CBN rate on the remittance date" />
+                  <small className="text-muted">Amounts below are in {currency}. The extra naira paid (or saved) is posted as an exchange loss (or gain).</small>
+                </div>
+              </>
+            )}
             <div className="field">
               <label htmlFor="gross_premium">Gross premium</label>
               <input id="gross_premium" type="number" step="0.01" min="0" value={grossPremium} onChange={(e) => setGrossPremium(e.target.value)} />

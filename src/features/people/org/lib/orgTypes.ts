@@ -21,6 +21,7 @@ export interface Employee {
   department_name: string;
   department_code: string;
   job_title: string | null;
+  gender: "Male" | "Female" | null;
   role_family: string;
   line_manager_id: number | null;
   line_manager_name: string | null;
@@ -41,6 +42,7 @@ export interface OrgMeta {
   departments: Pick<Department, "id" | "code" | "name" | "default_role_family" | "is_active">[];
   roleFamilies: string[];
   statuses: string[];
+  genders: string[];
   appraisalRoles: { role: string; label: string; description: string }[];
   users: { id: number; username: string; role: string; employee_id: number | null; employee_name: string | null }[];
   managers: { id: number; staff_no: string; full_name: string; job_title: string | null }[];

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/shared/api/client";
 import { fmtMoney, fmtMoneyShort } from "@/shared/lib/format";
 import { RoleGate } from "@/app/guards/RoleGate";
+import { useAuth } from "@/features/platform/auth/AuthContext";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import "@/shared/styles/executive.css";
 
@@ -117,6 +118,7 @@ function ClientPaneBody({ clientId }: { clientId: number }) {
 export function ClientsListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const page = Number(searchParams.get("page") || "1");
   const q = searchParams.get("q") || "";
   const kyc = searchParams.get("kyc") || "";
@@ -160,6 +162,11 @@ export function ClientsListPage() {
         </div>
         <RoleGate need="write">
           <div className="exec-header-actions">
+            {user?.isAdmin && (
+              <Link className="btn btn-secondary btn-sm" to="/clients/merge">
+                Merge clients
+              </Link>
+            )}
             <Link className="btn btn-secondary btn-sm" to="/clients/import">
               Upload clients
             </Link>

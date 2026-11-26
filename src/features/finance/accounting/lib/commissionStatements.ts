@@ -50,6 +50,11 @@ export interface StatementDetail {
     matchedLinesVariance: number;
     deposit: number | null;
     depositVsStatement: number | null;
+    // VAT and WHT on Direct Bill lines (backend finance/tax): the deposit to expect is statement + VAT - WHT.
+    vatOnCommission: number;
+    whtOnCommission: number;
+    expectedDeposit: number;
+    depositVsExpected: number | null;
     counts: Record<LineStatus, number>;
   };
 }

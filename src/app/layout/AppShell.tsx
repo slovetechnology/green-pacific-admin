@@ -23,6 +23,9 @@ function ChevronIcon() {
 }
 
 // Flat items: things visited constantly, or that don't fit a single business process.
+// Closes the sidebar in every area (and the agent list). It opens inside the app, in the same tab
+// (features/portal/public/pages/StaffMarketplacePages.tsx); the public website is one button away there.
+const MARKETPLACE_ITEM: NavGroupItem = { to: "/insurance-marketplace", label: "Marketplace" };
 
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", end: true },
@@ -59,8 +62,13 @@ const POLICIES_MONEY_ITEMS = [
   { to: "/sub-brokers", label: "Sub-Brokers" },
   { to: "/broking-slips", label: "Broking Slips" },
   { to: "/renewals", label: "Renewals" },
+  { to: "/renewals/links-to-check", label: "Renewal Links to Check" },
   { to: "/insurer-remittances", label: "Insurer Remittances" },
   { to: "/refund-vouchers", label: "Refunds & Endorsement Approvals" },
+  { to: "/refunds", label: "Premium Refunds" },
+  { to: "/settlements", label: "Insurer Settlements" },
+  { to: "/producer-payables", label: "Producer Commission" },
+  { to: "/cash-bank", label: "Cash and Bank" },
   { to: "/expenses", label: "Expenses" },
   { to: "/financials", label: "Financials Performance" },
   { to: "/chart-of-accounts", label: "Chart of Accounts" },
@@ -68,6 +76,7 @@ const POLICIES_MONEY_ITEMS = [
 
 const SERVICE_CLAIMS_ITEMS = [
   { to: "/claims", label: "Claims" },
+  { to: "/claims/service", label: "Claims Service" },
   { to: "/client-messages", label: "Client Messages" },
   { to: "/clause-library", label: "Clause Library" },
   { to: "/policy-templates", label: "Policy Templates" },
@@ -89,7 +98,13 @@ const REPORT_ITEMS = [
   { to: "/reports/annual-report", label: "Annual Business" },
   { to: "/reports/risk-matrix", label: "Risk Matrix" },
   { to: "/reports/loss-experience", label: "Loss Experience" },
+  { to: "/reports/cancelled-transactions", label: "Cancelled Transactions" },
   { to: "/compliance/reports", label: "NAICOM Statutory Reports" },
+  { to: "/compliance/returns", label: "NAICOM Returns Workbench" },
+  { to: "/compliance/statutory-registers", label: "Board & AML Registers" },
+  { to: "/compliance/sanctions", label: "Sanctions Screening" },
+  { to: "/compliance/data-protection", label: "Data Protection" },
+  { to: "/compliance/statutory-settings", label: "NAICOM Returns Settings" },
   { to: "/policy-compliance", label: "Policy Compliance" },
 ];
 
@@ -374,6 +389,7 @@ const AGENT_NAV_ITEMS = [
   { to: "/appraisal/training", label: "My Training" },
   { to: "/hr/me", label: "My Compliance File" },
   { to: "/news", label: "Industry News" },
+  MARKETPLACE_ITEM,
   { to: "/faq", label: "FAQ" },
 ];
 
@@ -427,17 +443,22 @@ const NAV_AREAS = [
   { key: "sales", label: "Business & Sales", items: pick("/deals", "/deals/dashboard", "/kyc-submissions", "/expiring-policies", "/markets", "/cover-notes", "/campaigns", "/crm/bd-kpis") },
   { key: "customer-portal", label: "Customer Portal", items: PORTAL_ITEMS },
   { key: "lead-portal", label: "Lead Portal", items: LEAD_PORTAL_ITEMS },
+  // The AI ad campaigner, attribution and renewal engine (features/sales/growth-engine).
+  {
+    key: "growth-engine", label: "Growth Engine",
+    items: [{ to: "/growth-engine", label: "Campaigns & AI Leads" }],
+  },
   {
     key: "underwriting",
     label: "Policies & Claims",
-    items: pick("/transactions", "/renewals", "/renewal-milestones", "/renewal-rules", "/cover-settings", "/broking-slips", "/claims", "/clause-library", "/policy-templates"),
+    items: pick("/transactions", "/renewals", "/renewals/links-to-check", "/renewal-milestones", "/renewal-rules", "/cover-settings", "/broking-slips", "/claims", "/claims/service", "/clause-library", "/policy-templates"),
   },
   { key: "partners", label: "Business Partners", items: pick("/insurers", "/loss-adjusters", "/producers", "/sub-brokers") },
   {
     key: "finance",
     label: "Financials & Accounting",
     items: [
-      ...pick("/receipts", "/premium-invoices", "/commission-statements", "/insurer-remittances", "/refund-vouchers", "/expenses", "/financials", "/chart-of-accounts"),
+      ...pick("/receipts", "/premium-invoices", "/commission-statements", "/insurer-remittances", "/settlements", "/producer-payables", "/refund-vouchers", "/refunds", "/cash-bank", "/expenses", "/financials", "/chart-of-accounts"),
       { to: "/premium-statements", label: "Premium Statements" },
       { to: "/premium-statements/exceptions", label: "Reconciliation Exceptions" },
       { to: "/accounting-periods", label: "Accounting Periods" },
@@ -446,16 +467,19 @@ const NAV_AREAS = [
   {
     key: "reports",
     label: "Reports",
-    items: REPORT_ITEMS.filter((i) => !["/compliance/reports", "/policy-compliance", "/reports/risk-matrix"].includes(i.to)),
+    items: REPORT_ITEMS.filter((i) => !i.to.startsWith("/compliance/") && !["/policy-compliance", "/reports/risk-matrix"].includes(i.to)),
   },
-  { key: "compliance", label: "Compliance & Reporting", items: pick("/policy-compliance", "/compliance/reports", "/reports/risk-matrix") },
+  {
+    key: "compliance", label: "Compliance & Reporting",
+    items: pick("/policy-compliance", "/compliance/reports", "/compliance/returns", "/compliance/statutory-registers", "/compliance/sanctions", "/compliance/data-protection", "/compliance/statutory-settings", "/reports/risk-matrix"),
+  },
 ];
 
 // The top bar groups areas into hubs, one per business domain. A hub with several areas opens a dropdown;
 // the rest are plain links. Areas missing for a user are skipped.
 const HUBS = [
   { key: "overview", label: "Shared", areaKeys: ["overview"], menu: false },
-  { key: "clients-sales", label: "Clients & Sales", areaKeys: ["clients", "sales", "customer-portal", "lead-portal"], menu: true },
+  { key: "clients-sales", label: "Clients & Sales", areaKeys: ["clients", "sales", "customer-portal", "lead-portal", "growth-engine"], menu: true },
   { key: "underwriting", label: "Underwriting Hub", areaKeys: ["underwriting", "reinsurance", "policy-bank"], menu: true },
   { key: "partners", label: "Partners & Market", areaKeys: ["partners"], menu: false },
   { key: "finance", label: "Financials", areaKeys: ["finance", "ledger"], menu: true },
@@ -471,6 +495,8 @@ const ADMIN_ITEMS = [
   { to: "/testimonials", label: "Testimonials" },
   { to: "/audit-log", label: "Audit Log" },
   { to: "/coverage-gap-rules", label: "Coverage Gap Rules" },
+  { to: "/approval-limits", label: "Approval Limits" },
+  { to: "/client-texts", label: "SMS & WhatsApp" },
 ];
 
 // Path -> breadcrumb trail, built once from the nav config above so page titles
@@ -482,6 +508,8 @@ for (const area of NAV_AREAS) {
 }
 for (const tab of PB_TABS) BREADCRUMB_TRAILS[tab.to] = ["Policy Bank", tab.label];
 for (const tab of GL_TABS) BREADCRUMB_TRAILS[tab.to] = ["General Ledger", tab.label];
+BREADCRUMB_TRAILS["/insurance-marketplace"] = ["Marketplace"];
+BREADCRUMB_TRAILS["/insurance-marketplace/quote"] = ["Marketplace", "Request a quote"];
 BREADCRUMB_TRAILS["/client-messages/new"] = ["Client Messages", "New message"];
 BREADCRUMB_TRAILS["/client-messages/email-setup"] = ["Client Messages", "Email replies setup"];
 BREADCRUMB_TRAILS["/users"] = ["Admin", "Users"];
@@ -491,6 +519,8 @@ BREADCRUMB_TRAILS["/document-types"] = ["Admin", "Document Types"];
 BREADCRUMB_TRAILS["/team"] = ["Admin", "Our Team"];
 BREADCRUMB_TRAILS["/testimonials"] = ["Admin", "Testimonials"];
 BREADCRUMB_TRAILS["/audit-log"] = ["Admin", "Audit Log"];
+BREADCRUMB_TRAILS["/approval-limits"] = ["Admin", "Approval Limits"];
+BREADCRUMB_TRAILS["/client-texts"] = ["Admin", "SMS & WhatsApp"];
 BREADCRUMB_TRAILS["/appraisal"] = ["Performance", "Appraisal"];
 BREADCRUMB_TRAILS["/appraisal/team"] = ["Performance", "My Team"];
 BREADCRUMB_TRAILS["/appraisal/cycles"] = ["Performance", "Appraisal Cycles"];
@@ -821,6 +851,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               ))}
             </>
           )}
+          {!user?.isAgent && <SidebarLink item={MARKETPLACE_ITEM} summary={summary} />}
         </nav>
         <StatsPanel summary={summary} />
         {user?.isAdmin && !narrow && (

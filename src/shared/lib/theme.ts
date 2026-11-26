@@ -36,9 +36,9 @@ export function saveTheme(theme: ThemeMode) {
 }
 
 /**
- * Dark mode is for signed-in people only. Every page starts light (root.tsx); the staff app shell calls
- * this, which applies the saved theme while it is on screen and goes back to light when it unmounts
- * (signing out).
+ * Dark mode is for signed-in people only. Every page starts light (root.tsx); the staff app shell and the
+ * customer portal shell call this, which applies the saved theme while they are on screen and goes back to
+ * light when they leave (signing out, or a public page).
  */
 export function useSignedInTheme() {
   useEffect(() => {
