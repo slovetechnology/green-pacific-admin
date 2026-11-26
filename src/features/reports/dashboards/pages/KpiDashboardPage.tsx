@@ -6,7 +6,7 @@ import { ApiError } from "@/shared/api/client";
 import { refreshDashboardKpis, useDashboardKpis, type KpiView } from "../api/dashboardKpis";
 import { ExecutiveView } from "../components/kpi/ExecutiveView";
 import { ManagerView } from "../components/kpi/ManagerView";
-import { SubBrokerWidget } from "@/features/partners/sub-brokers/components/SubBrokerWidget";
+import { CancelledPoliciesWidget } from "../components/kpi/CancelledPoliciesWidget";
 import { ProducerView } from "../components/kpi/ProducerView";
 import { KpiGridSkeleton, PanelSkeleton } from "../components/kpi/KpiCard";
 import { Panel } from "@/shared/components/exec/Panel";
@@ -166,7 +166,7 @@ export function KpiDashboardPage() {
       )}
 
       {data?.executive && <ExecutiveView data={data.executive} year={data.year} />}
-      {(data?.executive || data?.sales) && <SubBrokerWidget />}
+      {(data?.executive || data?.sales) && <CancelledPoliciesWidget year={data.year} />}
       {data?.sales && data.retention && data.operations && <ManagerView sales={data.sales} retention={data.retention} operations={data.operations} />}
       {data?.producer && <ProducerView data={data.producer} />}
     </div>

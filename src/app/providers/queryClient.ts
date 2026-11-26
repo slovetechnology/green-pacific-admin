@@ -11,11 +11,12 @@ export function isTransientError(error: unknown): boolean {
 
 // A page that is told "not signed in" re-checks the session, so an ended session sends the user to
 // the sign-in page (the route guards follow /api/auth/me) instead of leaving every page in error.
-const SESSION_KEYS = new Set(["me"]);
+const SESSION_KEYS = new Set(["me", "portal-me"]);
 
 function recheckSession(error: unknown) {
   if (!(error instanceof ApiError) || error.status !== 401) return;
   void queryClient.invalidateQueries({ queryKey: ["me"] });
+  void queryClient.invalidateQueries({ queryKey: ["portal-me"] });
 }
 
 export const queryClient: QueryClient = new QueryClient({

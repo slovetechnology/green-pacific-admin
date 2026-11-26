@@ -8,7 +8,8 @@
     "build": "react-router build",
     "typecheck": "react-router typegen && tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json",
     "lint": "oxlint",
-    "preview": "npx serve build/client -s"
+    "preview": "npx serve build/client -s",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@react-router/node": "^7.18.4",
@@ -22,6 +23,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@react-router/dev": "^7.18.4",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",

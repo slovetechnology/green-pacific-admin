@@ -24,6 +24,64 @@ interface UserRow {
   branch_id: number | null;
   branch_name: string | null;
   managed_clients: number;
+  // Two-factor sign-in is switched on for this login.
+  mfa_enabled: boolean;
+}
+
+interface MfaPolicy {
+  admins: boolean;
+  finance: boolean;
+  compliance: boolean;
+  everyone: boolean;
+}
+
+const POLICY_OPTIONS: { key: keyof MfaPolicy; label: string; help: string }[] = [
+  { key: "admins", label: "Administrators", help: "Everyone with the admin access role." },
+  { key: "finance", label: "Finance users", help: "Anyone holding a General Ledger role (finance director, accountant, auditor)." },
+  { key: "compliance", label: "Compliance users", help: "Anyone holding the compliance or MD appraisal role." },
+  { key: "everyone", label: "Everyone", help: "Every staff login, including agents." },
+];
+
+// Who must use two-factor sign-in. A person it covers who hasn't set it up is taken through setup at their next
+// sign-in (or straight away if already signed in), and can't switch it off. Saved and audited by the server.
+function MfaPolicyCard() {
+  const queryClient = useQueryClient();
+  const { data } = useQuery({ queryKey: ["users", "mfa-policy"], queryFn: () => api.get<{ policy: MfaPolicy }>("/api/users/mfa-policy") });
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  async function toggle(key: keyof MfaPolicy, value: boolean) {
+    setError(null);
+    setSaving(true);
+    try {
+      const res = await api.post<{ policy: MfaPolicy }>("/api/users/mfa-policy", { [key]: value });
+      queryClient.setQueryData(["users", "mfa-policy"], res);
+      await queryClient.invalidateQueries({ queryKey: ["me"] });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not save the setting.");
+    } finally {
+      setSaving(false);
+    }
+  }
+  return (
+    <div className="card">
+      <h2>Two-factor sign-in</h2>
+      <p className="text-muted">
+        Require a code from an authenticator app, as well as the password, for these people. Each person sets it up on
+        their Account page, or is taken through setup when they next sign in.
+      </p>
+      {error && <div className="flash flash-error">{error}</div>}
+      {data && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(14rem, 1fr))", gap: "0.75rem 1.5rem" }}>
+          {POLICY_OPTIONS.map((o) => (
+            <label key={o.key} style={{ display: "flex", gap: "0.6rem", alignItems: "flex-start", fontWeight: 400 }}>
+              <input type="checkbox" style={{ width: "auto", marginTop: "0.2rem" }} checked={data.policy[o.key]} disabled={saving} onChange={(e) => toggle(o.key, e.target.checked)} />
+              <span><strong>{o.label}</strong><br /><small className="text-muted">{o.help}</small></span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface BranchOption {
@@ -177,6 +235,19 @@ export function UsersPage() {
     }
   }
 
+  async function handleMfaReset(userRow: UserRow) {
+    if (!confirmAction(`Reset two-factor sign-in for ${userRow.name}? Use this when they have lost their phone. They set it up again when they next sign in.`)) return;
+    setError(null);
+    setNotice(null);
+    try {
+      await api.post(`/api/users/${userRow.id}/mfa-reset`);
+      setNotice(`Two-factor sign-in was reset for ${userRow.name}.`);
+      await refetchUsers();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not reset two-factor sign-in.");
+    }
+  }
+
   async function handleDelete(userRow: UserRow) {
     if (!confirmAction(`Delete user "${userRow.name}"?`)) return;
     try {
@@ -269,6 +340,11 @@ export function UsersPage() {
       header: "Clients managed",
       render: (u) => (u.role === "agent" && u.managed_clients === 0 ? <span title="This agent can't see any clients yet">0 ⚠</span> : u.managed_clients),
     },
+    {
+      key: "mfa",
+      header: "Two-factor",
+      render: (u) => (u.mfa_enabled ? <span className="badge badge-paid">On</span> : <span className="badge badge-secondary">Off</span>),
+    },
     { key: "created", header: "Created", render: (u) => u.created_at },
     {
       key: "actions",
@@ -281,6 +357,11 @@ export function UsersPage() {
           <button type="button" className="btn-secondary btn-sm" onClick={() => setPwUser(u)}>
             Set password
           </button>
+          {u.mfa_enabled && u.id !== me?.id && (
+            <button type="button" className="btn-secondary btn-sm" title="They have lost their phone: they set it up again at next sign-in" onClick={() => handleMfaReset(u)}>
+              Reset two-factor
+            </button>
+          )}
           {u.id !== me?.id && (
             <button type="button" className="btn-danger btn btn-sm" onClick={() => handleDelete(u)}>
               Delete
@@ -369,6 +450,7 @@ export function UsersPage() {
                 </option>
               ))}
             </select>
+            <small className="text-muted">An editor or viewer with a branch sees only that branch's clients, policies, claims and receipts. Leave blank to see everything.</small>
           </div>
           <div className="field" style={{ justifyContent: "flex-end" }}>
             <button type="submit" className="btn" disabled={submitting}>
@@ -383,6 +465,8 @@ export function UsersPage() {
           </p>
         )}
       </div>
+
+      <MfaPolicyCard />
 
       <div className="card">
         <h2>All users</h2>

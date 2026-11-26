@@ -80,7 +80,7 @@ export function EmailRepliesSetupPage() {
           <p className="eyebrow"><Link to="/client-messages">Client Messages</Link></p>
           <h1>Email replies setup</h1>
           <p style={{ color: "var(--text-muted)", margin: "0.25rem 0 0", maxWidth: "46rem" }}>
-            When this is on, a client can answer a message you send them by simply replying to the email. Their reply, with any attachments, lands in the same conversation here.
+            When this is on, a client can answer a message you send them by simply replying to the email. Their reply, with any attachments, lands in the same conversation here and in their portal.
           </p>
         </div>
       </div>

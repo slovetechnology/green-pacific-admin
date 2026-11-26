@@ -186,9 +186,14 @@ export function InsurersListPage() {
         <RoleGate need="write">
           <div className="exec-header-actions">
             {user?.isAdmin && (
-              <Link className="btn btn-secondary btn-sm" to="/insurers/directory-import">
-                Load insurer directory
-              </Link>
+              <>
+                <Link className="btn btn-secondary btn-sm" to="/insurers/merge">
+                  Merge insurers
+                </Link>
+                <Link className="btn btn-secondary btn-sm" to="/insurers/directory-import">
+                  Load insurer directory
+                </Link>
+              </>
             )}
             <Link className="btn btn-secondary btn-sm" to="/insurers/import">
               Upload insurers
@@ -240,6 +245,11 @@ export function InsurersListPage() {
                   Edit
                 </Link>
               </RoleGate>
+              {user?.isAdmin && (
+                <Link className="btn btn-secondary btn-sm" to={`/insurers/merge?drop=${selected.id}`}>
+                  Merge into another…
+                </Link>
+              )}
             </>
           )
         }

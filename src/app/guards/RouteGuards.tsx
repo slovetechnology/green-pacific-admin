@@ -3,8 +3,11 @@ import { Navigate, useSearchParams } from "react-router";
 import { useAuth } from "@/features/platform/auth/AuthContext";
 import { AppShell } from "@/app/layout/AppShell";
 import { RESET_TOKEN_PARAM, SignInScreen } from "@/features/platform/auth/pages/SignInScreen";
+import { MfaRequiredScreen } from "@/features/platform/auth/pages/MfaRequiredScreen";
 import { SessionCheck } from "@/features/platform/auth/components/SessionCheck";
 import { appraisalAccess } from "@/features/people/appraisal/lib/appraisalTypes";
+import { usePortalAuth } from "@/features/portal/customer-portal/PortalAuthContext";
+import { PortalShell } from "@/features/portal/customer-portal/components/PortalShell";
 
 // Every staff page sits in this layout. Whether someone is signed in is the server's answer to
 // GET /api/auth/me (and any 401 re-asks it, app/providers/queryClient.ts); signed out, the sign-in screen
@@ -15,6 +18,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const [params] = useSearchParams();
   if (isLoading) return <SessionCheck />;
   if (!user || params.has(RESET_TOKEN_PARAM)) return <SignInScreen />;
+  if (user.mfaSetupRequired) return <MfaRequiredScreen />;
   return <AppShell>{children}</AppShell>;
 }
 
@@ -44,4 +48,11 @@ export function RequireAppraisal({ need, children }: { need: "hr" | "flags" | "a
   const { user } = useAuth();
   if (!appraisalAccess(user)[need]) return <Navigate to="/" replace />;
   return <>{children}</>;
+}
+
+export function RequirePortalAuth({ children }: { children: ReactNode }) {
+  const { customer, isLoading } = usePortalAuth();
+  if (isLoading) return null;
+  if (!customer) return <Navigate to="/portal/login" replace />;
+  return <PortalShell>{children}</PortalShell>;
 }

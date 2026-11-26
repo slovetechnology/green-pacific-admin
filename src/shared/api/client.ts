@@ -44,6 +44,47 @@ function getCsrfToken(forceRefresh = false): Promise<string> {
   return csrfTokenPromise;
 }
 
+// ---- Loading state on the button that started a save ----
+// Every Add/Save/Delete button runs a mutating request through this file, usually from its click handler (or
+// the form's submit, which the browser also delivers as a click on the submit button). So the button pressed
+// in the last moment is the one waiting on the request: it gets data-loading (a spinner and no second
+// click, styled in responsive.css) until the request settles. React leaves the attribute alone because no
+// component sets it. A counter keeps it on while several requests from one click are still running.
+const PRESS_WINDOW_MS = 1500;
+let lastPress: { el: HTMLElement; at: number } | null = null;
+
+if (typeof document !== "undefined") {
+  document.addEventListener(
+    "click",
+    (event) => {
+      const el = (event.target as Element | null)?.closest?.("button, .btn, [role='button']") as HTMLElement | null;
+      if (el) lastPress = { el, at: performance.now() };
+    },
+    true,
+  );
+}
+
+function markPressedButtonBusy(): () => void {
+  const press = lastPress;
+  if (!press || !press.el.isConnected || performance.now() - press.at > PRESS_WINDOW_MS) return () => {};
+  const el = press.el;
+  el.dataset.loading = String(Number(el.dataset.loading || 0) + 1);
+  return () => {
+    const left = Number(el.dataset.loading || 1) - 1;
+    if (left > 0) el.dataset.loading = String(left);
+    else delete el.dataset.loading;
+  };
+}
+
+async function withPressedButtonBusy<T>(work: () => Promise<T>): Promise<T> {
+  const done = markPressedButtonBusy();
+  try {
+    return await work();
+  } finally {
+    done();
+  }
+}
+
 // Longer than the API's own limits (45s waiting for the write lock, then the work itself).
 const REQUEST_TIMEOUT_MS = 90_000;
 
@@ -52,8 +93,12 @@ interface ApiOptions {
   body?: unknown;
 }
 
-export async function apiFetch<T = unknown>(path: string, options: ApiOptions = {}): Promise<T> {
+export function apiFetch<T = unknown>(path: string, options: ApiOptions = {}): Promise<T> {
   const method = options.method || "GET";
+  return MUTATING_METHODS.has(method) ? withPressedButtonBusy(() => sendJson<T>(path, method, options)) : sendJson<T>(path, method, options);
+}
+
+async function sendJson<T>(path: string, method: string, options: ApiOptions): Promise<T> {
   const headers: Record<string, string> = {};
   let body: string | undefined;
   if (options.body !== undefined) {
@@ -108,7 +153,11 @@ export function documentTooLarge(file: File): string | null {
   return `"${file.name}" is ${mb} MB; the limit is ${MAX_DOCUMENT_MB} MB. Make it smaller (for example, scan at a lower resolution or compress the PDF) and try again.`;
 }
 
-export async function apiUpload<T = unknown>(path: string, formData: FormData): Promise<T> {
+export function apiUpload<T = unknown>(path: string, formData: FormData): Promise<T> {
+  return withPressedButtonBusy(() => sendUpload<T>(path, formData));
+}
+
+async function sendUpload<T>(path: string, formData: FormData): Promise<T> {
   const headers: Record<string, string> = { "X-CSRF-Token": await getCsrfToken() };
   let res = await fetch(apiUrl(path), { method: "POST", headers, body: formData, credentials: "include" });
   if (res.status === 403) {
@@ -134,7 +183,11 @@ export const api = {
 
 // POSTs JSON and returns a file (a generated PDF or Word document) with the name the server gave it. Errors come
 // back as { error } JSON, like every other call.
-export async function apiDownload(path: string, body: unknown): Promise<{ blob: Blob; filename: string }> {
+export function apiDownload(path: string, body: unknown): Promise<{ blob: Blob; filename: string }> {
+  return withPressedButtonBusy(() => sendDownload(path, body));
+}
+
+async function sendDownload(path: string, body: unknown): Promise<{ blob: Blob; filename: string }> {
   const send = async (token: string) =>
     fetch(apiUrl(path), { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-CSRF-Token": token }, body: JSON.stringify(body) });
   let res = await send(await getCsrfToken());

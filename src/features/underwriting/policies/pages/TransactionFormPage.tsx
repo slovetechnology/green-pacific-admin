@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
+import { RenewsPolicyField } from "../components/RenewsPolicyField";
 import { RiskSchedule, newRow, rowValue, type RiskKind, type RiskRow } from "../components/RiskSchedule";
 import { ScheduleSwitcher, useScheduleSpec, precheckSchedule, errorsFromServer, type ScheduleValue, type ScheduleErrors } from "../components/schedules";
 
@@ -41,6 +42,8 @@ function isLifeClass(cls: string, lifeClasses: string[] = []): boolean {
 }
 
 interface FormValues {
+  currency: string;
+  fx_rate: string;
   client_name: string;
   client_address: string;
   client_city: string;
@@ -73,6 +76,7 @@ interface FormValues {
   premium_paid: string;
   receipt_no: string;
   status: string;
+  cancellation_reason: string;
   date_of_payment: string;
   commission_earned: string;
   deferred_commission: string;
@@ -92,6 +96,8 @@ interface FormValues {
 }
 
 const EMPTY: FormValues = {
+  currency: "NGN",
+  fx_rate: "",
   client_name: "",
   client_address: "",
   client_city: "",
@@ -120,6 +126,7 @@ const EMPTY: FormValues = {
   premium_paid: "",
   receipt_no: "",
   status: "Unpaid",
+  cancellation_reason: "",
   date_of_payment: "",
   commission_earned: "",
   deferred_commission: "",
@@ -135,6 +142,27 @@ const EMPTY: FormValues = {
   property_description: "",
   risk_location: "",
 };
+
+// Co-insurance (backend coinsurance.js): when the insurer takes less than 100% of a new risk, the other insurers
+// are entered here and each gets its own transaction and credit note on the same debit note.
+interface CoInsurerRow {
+  _k: number;
+  // Set for a co-insurer already saved (its own transaction); blank for one being added.
+  id?: number;
+  credit_note_no?: string | null;
+  insurer_name: string;
+  proportion: string;
+  sum_insured: string;
+  premium_due: string;
+}
+let coKey = 0;
+const newCoInsurer = (): CoInsurerRow => ({ _k: ++coKey, insurer_name: "", proportion: "", sum_insured: "", premium_due: "" });
+const PPM = 1_000_000;
+const ppm = (v: string) => Math.round((parseFloat(v) || 0) * PPM);
+const kobo = (v: string | number) => Math.round((typeof v === "number" ? v : parseFloat(String(v).replace(/,/g, "")) || 0) * 100);
+const naira = (k: number) => (k / 100).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const shareOf = (total: string, proportion: string) => (kobo(total) * (parseFloat(proportion) || 0)) / 100;
+const asMoney = (n: number) => (Math.round(n * 100) / 100).toFixed(2);
 
 export function TransactionFormPage() {
   const { txId } = useParams();
@@ -159,6 +187,20 @@ export function TransactionFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [editingClientId, setEditingClientId] = useState<string>("");
   const [showReceiptPrompt, setShowReceiptPrompt] = useState(false);
+  // The status the transaction was loaded with: a reason is asked for only when it is being cancelled now.
+  const [savedStatus, setSavedStatus] = useState("");
+  const [coInsurers, setCoInsurers] = useState<CoInsurerRow[]>([newCoInsurer()]);
+  // Which policy a new Renewal renews: an id, "none" (not on file) or "" (not chosen yet).
+  const [renewsId, setRenewsId] = useState("");
+  const [coTotals, setCoTotals] = useState({ sum_insured: "", premium: "" });
+  const [leadShareSi, setLeadShareSi] = useState("");
+  // Adding a late co-insurer to a placement whose other insurers are already on file under this debit note.
+  const [coAlreadyRecorded, setCoAlreadyRecorded] = useState(false);
+  // On an edit, co-insurers are sent (and the placement re-saved) only once something in that section changed.
+  const [coTouched, setCoTouched] = useState(false);
+  const [savedCoinsurers, setSavedCoinsurers] = useState(0);
+  const [isNote, setIsNote] = useState(false);
+  const cancelling = values.status === "Cancelled" && savedStatus !== "Cancelled";
 
   const optionsQuery = useQuery({
     queryKey: ["transactions", "meta"],
@@ -191,8 +233,28 @@ export function TransactionFormPage() {
         property: items.filter((i) => i.kind === "property").map((i) => newRow(i)),
         life: items.filter((i) => i.kind === "life").map((i) => newRow(i)),
       });
+      setSavedStatus(String(t.status ?? ""));
+      setIsNote(Boolean(t.parent_transaction_id));
+      const peers = (editQuery.data as { coinsurers?: { id: number; insurer_name: string | null; credit_note_no: string | null; proportion: number; sum_insured: number; premium_due: number }[] }).coinsurers ?? [];
+      setSavedCoinsurers(peers.length);
+      setCoTouched(false);
+      setLeadShareSi(num(t.sum_insured));
+      if (peers.length) {
+        setCoInsurers(peers.map((p) => ({ _k: ++coKey, id: p.id, credit_note_no: p.credit_note_no, insurer_name: p.insurer_name ?? "", proportion: String(p.proportion), sum_insured: String(p.sum_insured ?? 0), premium_due: String(p.premium_due ?? 0) })));
+        // The 100% figures are what the placement adds up to now.
+        const total = (own: unknown, key: "sum_insured" | "premium_due") => asMoney(Number(own ?? 0) + peers.reduce((acc, p) => acc + Number(p[key] || 0), 0));
+        setCoTotals({ sum_insured: total(t.sum_insured, "sum_insured"), premium: total(t.premium_due, "premium_due") });
+      } else {
+        setCoInsurers([newCoInsurer()]);
+        setCoTotals({ sum_insured: "", premium: "" });
+      }
+      // A foreign policy (G8) is edited in its own currency: the stored naira figures are at its booked rate.
+      const foreign = Boolean(t.currency) && t.currency !== "NGN";
+      const amt = (key: string) => (foreign ? num(t[`${key}_fc`]) : num(t[key]));
       setValues((prev) => ({
         ...prev,
+        currency: String(t.currency ?? "NGN"),
+        fx_rate: foreign ? num(t.fx_rate) : "",
         client_name: String(t.client_name ?? ""),
         client_address: String(t.client_address ?? ""),
         client_city: String(t.client_city ?? ""),
@@ -207,19 +269,20 @@ export function TransactionFormPage() {
         debit_note_no: String(t.debit_note_no ?? ""),
         billing_mode: String(t.billing_mode ?? ""),
         payment_due_date: String(t.payment_due_date ?? ""),
-        sum_insured: num(t.sum_insured),
+        sum_insured: amt("sum_insured"),
         tppd_limit: t.tppd_limit === null || t.tppd_limit === undefined ? "" : String(t.tppd_limit),
-        annual_premium_due: num(t.annual_premium_due),
+        annual_premium_due: amt("annual_premium_due"),
         start_date: String(t.start_date ?? ""),
         end_date: String(t.end_date ?? ""),
         proportion: num(t.proportion) || "1",
-        premium_due: num(t.premium_due),
+        premium_due: amt("premium_due"),
         commission_rate: num(t.commission_rate),
-        brokerage: num(t.brokerage),
-        co_brokers: num(t.co_brokers) || "0",
-        premium_paid: num(t.premium_paid),
+        brokerage: amt("brokerage"),
+        co_brokers: amt("co_brokers") || "0",
+        premium_paid: foreign ? num(Math.round((Number(t.premium_paid) / Number(t.fx_rate)) * 100) / 100) : num(t.premium_paid),
         receipt_no: String(t.receipt_no ?? ""),
         status: String(t.status ?? "Unpaid"),
+        cancellation_reason: "",
         date_of_payment: String(t.date_of_payment ?? ""),
         commission_earned: num(t.commission_earned),
         deferred_commission: num(t.deferred_commission),
@@ -294,9 +357,89 @@ export function TransactionFormPage() {
   const totalBrokerage = n("brokerage") + n("co_brokers");
   const netPremium = n("premium_due") - totalBrokerage;
 
+
+  function coinsuranceProblems(): string[] {
+    const out: string[] = [];
+    if (leavingCoinsurance) return out;
+    if (!coInsurers.length) out.push("Add at least one co-insurer.");
+    if (!(kobo(coTotalPrem) > 0)) out.push("Enter the premium: the lead insurer's share, or the total premium (100%).");
+    const names = [values.insurer_name, ...coInsurers.map((c) => c.insurer_name)].map((x) => x.trim().toLowerCase());
+    if (names.some((x) => !x)) out.push("Enter every co-insurer's name.");
+    else if (new Set(names).size !== names.length) out.push("Each insurer can appear only once.");
+    if (coRows.some((c) => ppm(c.proportion) <= 0 || ppm(c.proportion) >= PPM)) out.push("Each co-insurer's share must be above 0 and below 1.");
+    if (coSharesPpm !== PPM) out.push(`The shares total ${coSharesPpm / 10000}%; they must total 100%.`);
+    if (coSiKobo !== kobo(coTotalSi)) out.push(`The shares of the sum insured add up to ₦${naira(coSiKobo)}, not ₦${naira(kobo(coTotalSi))}.`);
+    if (kobo(coTotalPrem) > 0 && coPremKobo !== kobo(coTotalPrem)) out.push(`The shares of the premium add up to ₦${naira(coPremKobo)}, not ₦${naira(kobo(coTotalPrem))}.`);
+    return out;
+  }
+
+  // Fills every insurer's sum insured and premium from the 100% figures and its share; any kobo left over by
+  // rounding goes to the lead insurer, so the shares add up to the totals exactly.
+  function splitByShares() {
+    setCoTouched(true);
+    const followers = coRows.map((c) => ({ ...c, sum_insured: asMoney(shareOf(coSiBasis, c.proportion)), premium_due: asMoney(shareOf(coPremBasis, c.proportion)) }));
+    const leadSi = (kobo(coSiBasis) - followers.reduce((sum, c) => sum + kobo(c.sum_insured), 0)) / 100;
+    const leadPrem = (kobo(coPremBasis) - followers.reduce((sum, c) => sum + kobo(c.premium_due), 0)) / 100;
+    setCoInsurers(followers);
+    setLeadShareSi(asMoney(leadSi));
+    setValues((prev) => {
+      const rate = parseFloat(prev.commission_rate) || 0;
+      return { ...prev, premium_due: asMoney(leadPrem), brokerage: rate ? asMoney(leadPrem * rate) : prev.brokerage };
+    });
+  }
+
+  // The insurers on file not already in this placement (the lead and the other co-insurers), for a co-insurer's picker.
+  function insurersFree(k: number): string[] {
+    const taken = new Set([values.insurer_name, ...coInsurers.filter((c) => c._k !== k).map((c) => c.insurer_name)].map((x) => x.trim().toLowerCase()));
+    return (opts?.insurers ?? []).filter((name) => !taken.has(name.trim().toLowerCase()));
+  }
+
+  // A typed co-insurer name completed to the insurer on file it means: the same name in any case, else the only
+  // insurer whose name starts with, then contains, what was typed (spaces and punctuation ignored).
+  function matchInsurer(typed: string, k: number): string | null {
+    const squash = (x: string) => x.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const want = squash(typed);
+    if (!want) return null;
+    const pool = insurersFree(k);
+    const exact = pool.find((name) => squash(name) === want);
+    if (exact) return exact;
+    const starts = pool.filter((name) => squash(name).startsWith(want));
+    if (starts.length === 1) return starts[0];
+    const contains = pool.filter((name) => squash(name).includes(want));
+    return contains.length === 1 ? contains[0] : null;
+  }
+
+  function confirmRemove(c: CoInsurerRow) {
+    return window.confirm(`Remove ${c.insurer_name || "this co-insurer"} from the placement? Its transaction ${c.credit_note_no || ""} will be cancelled when you save.`);
+  }
+
+  function setCoInsurer(k: number, patch: Partial<CoInsurerRow>) {
+    setCoTouched(true);
+    setCoInsurers((rows) =>
+      rows.map((r) => {
+        if (r._k !== k) return r;
+        const next = { ...r, ...patch };
+        // Typing a share fills that insurer's sum insured and premium from the totals.
+        if (patch.proportion !== undefined) {
+          if (kobo(coSiBasis) > 0) next.sum_insured = asMoney(shareOf(coSiBasis, patch.proportion));
+          if (kobo(coPremBasis) > 0) next.premium_due = asMoney(shareOf(coPremBasis, patch.proportion));
+        }
+        return next;
+      })
+    );
+  }
+
   async function handleSubmit(e: FormEvent, withOverride = false) {
     e.preventDefault();
     setError(null);
+    if (enteringCoinsurers) {
+      const problems = coinsuranceProblems();
+      if (problems.length) {
+        setError(`Co-insurance: ${problems.join(" ")}`);
+        document.getElementById("coinsurance-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+    }
     // Class-specific risk schedule (NIIRA 2025): checked for the mandatory fields here, then in full by the server.
     const scheduleData = scheduleSpec && riskSchedule?.classKey === scheduleSpec.key ? riskSchedule.data : {};
     const sendSchedule = Boolean(scheduleSpec) && (!isEdit || scheduleTouched || loaded.hadSchedule || values.class_of_business !== loaded.cls);
@@ -309,6 +452,10 @@ export function TransactionFormPage() {
       }
     } else {
       setScheduleErrors({});
+    }
+    if (cancelling && !values.cancellation_reason.trim()) {
+      setError("Give the reason for cancelling this transaction.");
+      return;
     }
     setSubmitting(true);
     // The schedule is the source of the risk details and the sum insured, so the single-risk fields are not sent.
@@ -327,8 +474,24 @@ export function TransactionFormPage() {
       ...(showItemTable ? { risk_items: items } : {}),
       sum_insured: scheduleTotal > 0 ? String(scheduleTotal) : values.sum_insured,
       ...(sendSchedule ? { risk_schedule_data: scheduleData } : {}),
+      // A co-insured row carries its own share of the sum insured, not the schedule's 100% total.
+      ...(isEdit && showCoinsurance && !leavingCoinsurance ? { sum_insured: leadSiValue } : {}),
+      // Co-insurers entered or changed: the server saves one row per insurer.
+      ...(enteringCoinsurers
+        ? {
+            ...(leavingCoinsurance ? {} : { sum_insured: leadSiValue }),
+            coinsurance_total_sum_insured: coTotalSi,
+            coinsurance_total_premium: coTotalPrem,
+            co_insurers: coRows.map(({ _k, credit_note_no, ...c }) => {
+              void _k;
+              void credit_note_no;
+              return c;
+            }),
+          }
+        : {}),
     };
-    const body = withOverride ? { ...payload, compliance_override_reason: overrideReason } : payload;
+    const withRenewal = !isEdit && values.business_type === "Renewal" && renewsId ? { ...payload, renews_transaction_id: renewsId } : payload;
+    const body = withOverride ? { ...withRenewal, compliance_override_reason: overrideReason } : withRenewal;
     try {
       if (isEdit) {
         await api.put(`/api/transactions/${txId}`, body);
@@ -384,6 +547,47 @@ export function TransactionFormPage() {
   // still uses the generic schedule of property.
   const showItemTable = riskKind !== "property" || /^industrial all risks?\b/i.test(values.class_of_business.trim());
   const scheduleTotal = showItemTable ? schedules[riskKind].reduce((sum, r) => sum + rowValue(r), 0) : 0;
+
+  const leadPpm = ppm(values.proportion);
+  const showCoinsurance = isEdit ? !isNote && leadPpm > 0 && (leadPpm < PPM || savedCoinsurers > 0) : leadPpm > 0 && leadPpm < PPM;
+  const enteringCoinsurers = showCoinsurance && (isEdit ? coTouched : !coAlreadyRecorded);
+  // Back to 100% with every co-insurer removed: the transaction leaves co-insurance (edit only).
+  const leavingCoinsurance = isEdit && leadPpm === PPM && coInsurers.length === 0;
+  // A co-insurer whose share is left blank takes what the lead and the typed shares leave of 100%, shared
+  // equally when several are blank (any part per million left over goes to the first).
+  const coBlankShares = coInsurers.filter((c) => c.proportion.trim() === "").length;
+  const coShareLeftPpm = Math.max(0, PPM - leadPpm - coInsurers.reduce((sum, c) => sum + (c.proportion.trim() === "" ? 0 : ppm(c.proportion)), 0));
+  let coBlankSeen = 0;
+  const coShares = coInsurers.map((c) => {
+    if (c.proportion.trim() !== "") return c.proportion;
+    const each = Math.floor(coShareLeftPpm / coBlankShares);
+    const share = each + (coBlankSeen++ === 0 ? coShareLeftPpm - each * coBlankShares : 0);
+    return String(share / PPM);
+  });
+  const coSharesPpm = leadPpm + coShares.reduce((sum, x) => sum + ppm(x), 0);
+  // The 100% sum insured a blank share is taken from: as typed, else the risk schedule's total (which lists the
+  // whole risk), else the lead's share grossed up by the lead's share of the risk, else 0 (no sum insured).
+  const coSiFixed = coTotals.sum_insured.trim() !== "" ? coTotals.sum_insured : scheduleTotal > 0 ? String(scheduleTotal) : "";
+  const coSiBasis = coSiFixed !== "" ? coSiFixed : leadShareSi.trim() !== "" && leadPpm > 0 ? asMoney((kobo(leadShareSi) * PPM) / leadPpm / 100) : "0";
+  // The 100% premium a co-insurer's blank premium is taken from: as typed, else the lead's premium grossed up by
+  // its share (the lead's premium is its share of the whole).
+  const coPremBasis = coTotals.premium.trim() !== "" ? coTotals.premium : leadPpm > 0 ? asMoney((kobo(values.premium_due) * PPM) / leadPpm / 100) : "0";
+  // Each co-insurer as it will be saved: a blank sum insured or premium is its share of the 100% figure.
+  const coRows = coInsurers.map((c, i) => ({
+    ...c,
+    proportion: coShares[i],
+    sum_insured: c.sum_insured.trim() !== "" ? c.sum_insured : asMoney(shareOf(coSiBasis, coShares[i])),
+    premium_due: c.premium_due.trim() !== "" ? c.premium_due : asMoney(shareOf(coPremBasis, coShares[i])),
+  }));
+  const coFollowersSiKobo = coRows.reduce((sum, c) => sum + kobo(c.sum_insured), 0);
+  // The lead's share, left blank, is what the co-insurers' shares leave of the total.
+  const leadSiValue = leadShareSi.trim() !== "" ? leadShareSi : asMoney(Math.max(0, kobo(coSiBasis) - coFollowersSiKobo) / 100);
+  const coSiKobo = kobo(leadSiValue) + coFollowersSiKobo;
+  // The 100% sum insured: as typed or the schedule's total, else what every insurer's share of it adds up to.
+  const coTotalSi = coSiFixed !== "" ? coSiFixed : asMoney(coSiKobo / 100);
+  const coPremKobo = kobo(values.premium_due) + coRows.reduce((sum, c) => sum + kobo(c.premium_due), 0);
+  // The 100% premium: as typed, else what every insurer's share of it adds up to.
+  const coTotalPrem = coTotals.premium.trim() !== "" ? coTotals.premium : asMoney(coPremKobo / 100);
 
   // Start each schedule with one blank row so the fields are there as soon as a class is picked.
   const editLoaded = !isEdit || Boolean(editQuery.data);
@@ -582,6 +786,17 @@ export function TransactionFormPage() {
                 ))}
               </select>
             </div>
+            {!isEdit && values.business_type === "Renewal" && (
+              <RenewsPolicyField
+                clientName={values.client_name}
+                policyNo={values.policy_no}
+                classOfBusiness={values.class_of_business}
+                insurerName={values.insurer_name}
+                startDate={values.start_date}
+                value={renewsId}
+                onChange={setRenewsId}
+              />
+            )}
             <div className="field">
               <label htmlFor="policy_no">Policy no</label>
               <input id="policy_no" value={values.policy_no} onChange={(e) => set("policy_no", e.target.value)} />
@@ -610,6 +825,19 @@ export function TransactionFormPage() {
                 ))}
               </select>
             </div>
+            <div className="field">
+              <label htmlFor="currency">Currency</label>
+              <select id="currency" value={values.currency} onChange={(e) => set("currency", e.target.value)} disabled={isNote}>
+                {["NGN", "USD", "GBP", "EUR"].map((c) => <option key={c} value={c}>{c === "NGN" ? "Naira (NGN)" : c}</option>)}
+              </select>
+            </div>
+            {values.currency !== "NGN" && (
+              <div className="field">
+                <label htmlFor="fx_rate">Exchange rate (NGN per {values.currency})</label>
+                <input id="fx_rate" inputMode="decimal" value={values.fx_rate} onChange={(e) => set("fx_rate", e.target.value)} placeholder="Blank: the CBN rate on the transaction date" disabled={isNote} />
+                <small className="text-muted">Amounts below are in {values.currency}; the policy is booked in naira at this rate.</small>
+              </div>
+            )}
             {values.billing_mode !== "Direct" && (
               <div className="field">
                 <label htmlFor="payment_due_date">Premium due by</label>
@@ -671,7 +899,7 @@ export function TransactionFormPage() {
                   </div>
                 </div>
               )}
-              {scheduleTotal === 0 && (
+              {scheduleTotal === 0 && !(isEdit ? showCoinsurance : enteringCoinsurers) && (
                 <div className="form-grid">
                   <div className="field">
                     <label htmlFor="sum_insured">Sum insured (used when the schedule has no values)</label>
@@ -696,8 +924,11 @@ export function TransactionFormPage() {
             </div>
             <div className="field">
               <label htmlFor="proportion">Proportion</label>
-              <input id="proportion" type="number" step="any" min="0" max="1" value={values.proportion} onChange={(e) => set("proportion", e.target.value)} />
-              <small>This insurer's share as a fraction (0.25 = 25%). Co-insurers on one debit note must total 1.</small>
+              <input id="proportion" type="number" step="any" min="0" max="1" value={values.proportion} onChange={(e) => {
+                  set("proportion", e.target.value);
+                  if (isEdit) setCoTouched(true);
+                }} />
+              <small>This insurer's share as a fraction (0.25 = 25%). Below 1, the co-insurers are asked for below.</small>
             </div>
             <div className="field">
               <label htmlFor="premium_due">Premium due</label>
@@ -779,6 +1010,23 @@ export function TransactionFormPage() {
                 Auto-derived as Paid/Unpaid from premium paid vs. premium due, unless set to Cancelled.
               </span>
             </div>
+            {cancelling && (
+              <div className="field">
+                <label htmlFor="cancellation_reason">Reason for cancellation *</label>
+                <textarea
+                  id="cancellation_reason"
+                  rows={2}
+                  required
+                  maxLength={1000}
+                  value={values.cancellation_reason}
+                  onChange={(e) => set("cancellation_reason", e.target.value)}
+                  placeholder="e.g. Client instructed cancellation: vehicle sold"
+                />
+                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                  Shown on the policy history and the Cancelled Transactions report. The premium and commission stop counting as income.
+                </span>
+              </div>
+            )}
             <div className="field">
               <label htmlFor="commission_earned">Commission earned</label>
               <input
@@ -801,6 +1049,156 @@ export function TransactionFormPage() {
               />
             </div>
           </div>
+
+          {showCoinsurance && (
+            <>
+              <div className="section-title" id="coinsurance-section">Co-insurance</div>
+              <p className="page-lede">
+                {values.insurer_name || "This insurer"} takes {leadPpm / 10000}% of the risk. {isEdit ? "The other insurers are below: change a share or amount, add an insurer, or remove one." : "Enter the other insurers' shares:"} Each
+                insurer has its own transaction and credit note number, all on one debit note. The shares must total 100%, and the shares of the sum
+                insured and premium must add up to the totals.
+              </p>
+              {isEdit && !coTouched && (
+                <p><small>Nothing here has changed, so saving leaves the co-insurers as they are.</small></p>
+              )}
+              {!isEdit && (
+                <label style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.75rem" }}>
+                  <input type="checkbox" checked={coAlreadyRecorded} onChange={(e) => setCoAlreadyRecorded(e.target.checked)} />
+                  The other insurers are already recorded under this client and debit note number
+                </label>
+              )}
+              {!coAlreadyRecorded && (
+                <>
+                  <div className="form-grid">
+                    <div className="field">
+                      <label htmlFor="co_total_si">Total sum insured (100%)</label>
+                      <input
+                        id="co_total_si"
+                        type="number"
+                        step="0.01"
+                        placeholder={scheduleTotal > 0 ? `${naira(kobo(scheduleTotal))} (the schedule total)` : kobo(coTotalSi) > 0 ? `${naira(kobo(coTotalSi))} (the shares added up)` : "Filled from the shares below"}
+                        value={coTotals.sum_insured}
+                        onChange={(e) => {
+                          setCoTouched(true);
+                          setCoTotals((t) => ({ ...t, sum_insured: e.target.value }));
+                        }}
+                      />
+                    </div>
+                    <div className="field">
+                      <label htmlFor="co_total_premium">Total premium (100%)</label>
+                      <input id="co_total_premium" type="number" step="0.01" placeholder={kobo(coTotalPrem) > 0 ? `${naira(kobo(coTotalPrem))} (the shares added up)` : "Filled from the premiums below"} value={coTotals.premium} onChange={(e) => {
+                        setCoTouched(true);
+                        setCoTotals((t) => ({ ...t, premium: e.target.value }));
+                      }} />
+                    </div>
+                    <div className="field" style={{ alignSelf: "end" }}>
+                      <button type="button" className="btn-secondary btn" onClick={splitByShares} disabled={kobo(coSiBasis) === 0 && kobo(coPremBasis) === 0}>
+                        Split the totals by share
+                      </button>
+                    </div>
+                  </div>
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Insurer</th>
+                          <th>Share (fraction)</th>
+                          <th>Share of sum insured</th>
+                          <th>Share of premium</th>
+                          <th />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td data-label="Insurer"><strong>{values.insurer_name || "Lead insurer"}</strong> (lead)</td>
+                          <td data-label="Share">{values.proportion}</td>
+                          <td data-label="Share of sum insured">
+                            <input type="number" step="0.01" aria-label="Lead insurer's share of the sum insured" value={leadShareSi} placeholder={leadSiValue} onChange={(e) => {
+                              setCoTouched(true);
+                              setLeadShareSi(e.target.value);
+                            }} />
+                          </td>
+                          <td data-label="Share of premium">
+                            <input type="number" step="0.01" aria-label="Lead insurer's share of the premium" value={values.premium_due} onChange={(e) => {
+                              if (isEdit) setCoTouched(true);
+                              const premium = e.target.value;
+                              // Like the co-insurers', the lead's brokerage follows its premium at the policy's rate.
+                              setValues((prev) => {
+                                const rate = parseFloat(prev.commission_rate) || 0;
+                                return { ...prev, premium_due: premium, brokerage: rate ? asMoney((parseFloat(premium) || 0) * rate) : prev.brokerage };
+                              });
+                            }} />
+                          </td>
+                          <td />
+                        </tr>
+                        {coInsurers.map((c, i) => (
+                          <tr key={c._k}>
+                            <td data-label="Insurer">
+                              <input list={`co-insurer-options-${c._k}`} aria-label={`Co-insurer ${i + 1} name`} placeholder="Start typing an insurer" value={c.insurer_name}
+                                onChange={(e) => setCoInsurer(c._k, { insurer_name: e.target.value })}
+                                onBlur={(e) => {
+                                  const full = matchInsurer(e.target.value, c._k);
+                                  if (full && full !== c.insurer_name) setCoInsurer(c._k, { insurer_name: full });
+                                }} />
+                              <datalist id={`co-insurer-options-${c._k}`}>
+                                {insurersFree(c._k).map((name) => (
+                                  <option key={name} value={name} />
+                                ))}
+                              </datalist>
+                              {c.id && <small> {c.credit_note_no || `#${c.id}`}</small>}
+                            </td>
+                            <td data-label="Share">
+                              <input type="number" step="any" min="0" max="1" aria-label={`Co-insurer ${i + 1} share`} value={c.proportion} placeholder={coShares[i]} onChange={(e) => setCoInsurer(c._k, { proportion: e.target.value })} />
+                            </td>
+                            <td data-label="Share of sum insured">
+                              <input type="number" step="0.01" aria-label={`Co-insurer ${i + 1} share of the sum insured`} value={c.sum_insured} placeholder={coRows[i]?.sum_insured} onChange={(e) => setCoInsurer(c._k, { sum_insured: e.target.value })} />
+                            </td>
+                            <td data-label="Share of premium">
+                              <input type="number" step="0.01" aria-label={`Co-insurer ${i + 1} share of the premium`} value={c.premium_due} placeholder={coRows[i]?.premium_due} onChange={(e) => setCoInsurer(c._k, { premium_due: e.target.value })} />
+                            </td>
+                            <td>
+                              <button type="button" className="btn-secondary btn btn-sm" disabled={!isEdit && coInsurers.length === 1}
+                                onClick={() => {
+                                  if (c.id && !confirmRemove(c)) return;
+                                  setCoTouched(true);
+                                  setCoInsurers((rows) => rows.filter((r) => r._k !== c._k));
+                                }}
+                              >
+                                Remove
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        <tr>
+                          <td data-label="Total"><strong>Total</strong></td>
+                          <td data-label="Shares" style={{ color: coSharesPpm === PPM ? "var(--status-good)" : "var(--status-critical)" }}>{coSharesPpm / 10000}%</td>
+                          <td data-label="Sum insured" style={{ color: coSiKobo === kobo(coTotalSi) ? "var(--status-good)" : "var(--status-critical)" }}>
+                            ₦{naira(coSiKobo)}
+                            {coSiKobo !== kobo(coTotalSi) && <small> (total is ₦{naira(kobo(coTotalSi))})</small>}
+                          </td>
+                          <td data-label="Premium" style={{ color: kobo(coTotalPrem) > 0 && coPremKobo === kobo(coTotalPrem) ? "var(--status-good)" : "var(--status-critical)" }}>
+                            ₦{naira(coPremKobo)}
+                            {kobo(coTotalPrem) > 0 && coPremKobo !== kobo(coTotalPrem) && <small> (total is ₦{naira(kobo(coTotalPrem))})</small>}
+                          </td>
+                          <td />
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <button type="button" className="btn-secondary btn btn-sm" onClick={() => {
+                    setCoTouched(true);
+                    setCoInsurers((rows) => [...rows, newCoInsurer()]);
+                  }}>
+                    Add co-insurer
+                  </button>
+                  <p><small>
+                    Each co-insurer's brokerage is its premium at this policy's commission rate. Its debit note, dates, class and risk schedule are this transaction's.
+                    {isEdit && " Removing a saved co-insurer cancels its transaction (its credit note and payments stay on file). To take this transaction out of co-insurance, set its share to 1 and remove every co-insurer."}
+                  </small></p>
+                </>
+              )}
+            </>
+          )}
 
           <div className="section-title">Other</div>
           <div className="form-grid">

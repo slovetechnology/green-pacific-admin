@@ -1,0 +1,405 @@
+/*
+ * Dedicated design system for the Customer Insurance Portal.
+ * Distinct from the internal admin app.css — every selector is scoped
+ * under .customer-portal so it can never leak into (or be leaked into by)
+ * the staff-facing screens that share this same SPA bundle.
+ *
+ * Palette: petrol/ink + paper. Emerald marks live cover, ochre marks a
+ * deadline the customer can still act on, rust marks cover that has
+ * stopped. Colour carries that one meaning throughout.
+ */
+
+.customer-portal {
+  --cp-ink: #163229;
+  --cp-ink-soft: #214b3a;
+  --cp-ink-line: #315a49;
+
+  --cp-paper: #f4f7f5;
+  --cp-card: #ffffff;
+  --cp-surface-soft: #eef3f0;
+  --cp-line: #dbe5df;
+  --cp-line-soft: #e6eee9;
+
+  --cp-text: #17211c;
+  --cp-muted: #63736a;
+
+  --cp-live: #16734a;
+  --cp-live-bg: #e5f3eb;
+  --cp-soon: #a66a00;
+  --cp-soon-bg: #fbf2de;
+  --cp-lapsed: #bd3d48;
+  --cp-lapsed-bg: #f9e8eb;
+
+  --cp-radius: 12px;
+  --cp-radius-sm: 8px;
+  --cp-shadow-sm: 0 1px 2px rgba(23, 33, 28, 0.04), 0 5px 16px rgba(23, 33, 28, 0.035);
+  --cp-shadow-md: 0 12px 30px rgba(23, 33, 28, 0.08), 0 2px 8px rgba(23, 33, 28, 0.04);
+  --cp-ease: 200ms ease-in-out;
+
+  font-family: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--cp-text);
+  background: var(--cp-paper);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+:root[data-theme="dark"] .customer-portal {
+  --cp-ink: #10251c;
+  --cp-ink-soft: #1b3a2c;
+  --cp-ink-line: #315542;
+  --cp-paper: #101714;
+  --cp-card: #17211c;
+  --cp-surface-soft: #1d2b24;
+  --cp-line: #304238;
+  --cp-line-soft: #26362d;
+  --cp-text: #edf5ef;
+  --cp-muted: #9caf9f;
+  --cp-live: #65c98e;
+  --cp-live-bg: #193326;
+  --cp-soon: #e2b45a;
+  --cp-soon-bg: #3b301b;
+  --cp-lapsed: #ee7c86;
+  --cp-lapsed-bg: #3b2026;
+  --cp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.18), 0 5px 16px rgba(0, 0, 0, 0.12);
+  --cp-shadow-md: 0 12px 30px rgba(0, 0, 0, 0.24), 0 2px 8px rgba(0, 0, 0, 0.14);
+}
+
+.customer-portal * { box-sizing: border-box; }
+.customer-portal .cp-skip-link { position: fixed; top: 8px; left: 8px; z-index: 200; transform: translateY(-160%); padding: 8px 11px; border-radius: var(--cp-radius-sm); background: var(--cp-live); color: #fff; font-weight: 700; box-shadow: var(--cp-shadow-md); }
+.customer-portal .cp-skip-link:focus { transform: translateY(0); text-decoration: none; }
+.customer-portal button { font: inherit; cursor: pointer; }
+.customer-portal a { color: inherit; }
+.customer-portal a, .customer-portal button, .customer-portal input, .customer-portal select, .customer-portal textarea { transition: border-color var(--cp-ease), background var(--cp-ease), color var(--cp-ease), box-shadow var(--cp-ease), transform var(--cp-ease); }
+.customer-portal :focus-visible { outline: 2px solid var(--cp-ink); outline-offset: 2px; }
+.customer-portal .cp-num { font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+/* ---------- shell ---------- */
+.customer-portal .cp-shell { display: grid; grid-template-columns: 256px 1fr; min-height: 100vh; }
+/* The content column may shrink below its widest line (long previews, tables), so the page never scrolls sideways. */
+.customer-portal .cp-shell > main { min-width: 0; }
+.customer-portal .cp-rail {
+  background: var(--cp-ink); color: #cbdce2; display: flex; flex-direction: column;
+  position: sticky; top: 0; height: 100vh;
+}
+.customer-portal .cp-brandbox { padding: 24px 22px 20px; border-bottom: 1px solid var(--cp-ink-line); }
+.customer-portal .cp-brand { color: #fff; font-weight: 700; font-size: 17px; letter-spacing: -0.015em; }
+.customer-portal .cp-brandsub { font-size: 11.5px; color: #7ea0ac; margin-top: 3px; }
+.customer-portal .cp-navlist { padding: 18px 12px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.customer-portal .cp-navbtn {
+  display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
+  background: none; border: 0; color: #b7ced6; padding: 10px 12px; border-radius: var(--cp-radius-sm);
+  font-size: 14.5px; text-decoration: none;
+}
+.customer-portal .cp-navbtn:hover { background: var(--cp-ink-soft); color: #fff; transform: translateX(2px); }
+.customer-portal .cp-navbtn.active {
+  background: var(--cp-ink-soft); color: #fff; font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--cp-live);
+}
+.customer-portal .cp-navbtn .cp-dot { width: 7px; height: 7px; border-radius: 50%; background: #4fc3a1; margin-left: auto; }
+.customer-portal .cp-navbtn .cp-navcount { margin-left: auto; min-width: 20px; padding: 1px 6px; border-radius: 999px; background: #4fc3a1; color: #08261c; font-size: 11.5px; font-weight: 700; text-align: center; }
+.customer-portal .cp-railfoot { padding: 16px 20px; border-top: 1px solid var(--cp-ink-line); font-size: 12.5px; color: #7ea0ac; }
+.customer-portal .cp-railfoot b { display: block; color: #dceaee; font-weight: 600; font-size: 13.5px; }
+
+.customer-portal .cp-topbar {
+  background: color-mix(in srgb, var(--cp-card) 94%, var(--cp-paper)); border-bottom: 1px solid var(--cp-line); padding: 18px 36px;
+  display: flex; align-items: center; gap: 18px; position: sticky; top: 0; z-index: 5;
+}
+.customer-portal .cp-topbar h1 { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: -0.02em; }
+.customer-portal .cp-topbar .cp-sub { color: var(--cp-muted); font-size: 13.5px; }
+.customer-portal .cp-spacer { flex: 1; }
+.customer-portal .cp-avatar {
+  width: 34px; height: 34px; border-radius: 50%; background: var(--cp-ink-soft); color: #fff;
+  display: grid; place-items: center; font-size: 13px; font-weight: 600;
+}
+.customer-portal .cp-wrap { padding: 32px 36px 72px; max-width: 1240px; }
+
+/* ---------- primitives ---------- */
+.customer-portal .cp-panel { background: var(--cp-card); border: 1px solid var(--cp-line); border-radius: var(--cp-radius); box-shadow: var(--cp-shadow-sm); }
+.customer-portal .cp-panel-h {
+  padding: 16px 20px; border-bottom: 1px solid var(--cp-line-soft);
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.customer-portal .cp-panel-h h2 { margin: 0; font-size: 15.5px; font-weight: 600; letter-spacing: -0.01em; }
+.customer-portal .cp-panel-h p { margin: 2px 0 0; font-size: 13px; color: var(--cp-muted); }
+
+.customer-portal .cp-pill {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600;
+  padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+}
+.customer-portal .cp-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.customer-portal .cp-pill--live { background: var(--cp-live-bg); color: var(--cp-live); }
+.customer-portal .cp-pill--expiring { background: var(--cp-soon-bg); color: var(--cp-soon); }
+.customer-portal .cp-pill--lapsed { background: var(--cp-lapsed-bg); color: var(--cp-lapsed); }
+.customer-portal .cp-pill--flat { background: var(--cp-surface-soft); color: var(--cp-muted); }
+
+.customer-portal .cp-btn {
+  border: 1px solid var(--cp-ink); background: var(--cp-ink); color: #fff; padding: 9px 16px;
+  border-radius: var(--cp-radius-sm); font-size: 14px; font-weight: 600; text-decoration: none;
+  display: inline-block; line-height: 1.3;
+}
+.customer-portal .cp-btn:hover { background: var(--cp-ink-soft); transform: translateY(-1px); }
+.customer-portal .cp-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.customer-portal .cp-btn--ghost { background: transparent; color: var(--cp-ink); border-color: var(--cp-line); }
+.customer-portal .cp-btn--ghost:hover { background: var(--cp-surface-soft); }
+.customer-portal .cp-btn--pay { background: var(--cp-live); border-color: var(--cp-live); }
+.customer-portal .cp-btn--pay:hover { background: #0b6650; }
+.customer-portal .cp-btn--sm { padding: 5px 11px; font-size: 13px; }
+.customer-portal .cp-theme-toggle { min-width: 34px; padding-left: 0; padding-right: 0; text-align: center; }
+
+.customer-portal table { width: 100%; border-collapse: collapse; }
+.customer-portal th {
+  text-align: left; font-size: 12.5px; color: var(--cp-muted); font-weight: 600;
+  padding: 11px 20px; border-bottom: 1px solid var(--cp-line-soft);
+}
+.customer-portal td { padding: 14px 20px; border-bottom: 1px solid var(--cp-line-soft); font-size: 14px; vertical-align: middle; }
+.customer-portal tr:last-child td { border-bottom: 0; }
+.customer-portal tbody tr:hover { background: color-mix(in srgb, var(--cp-live) 5%, var(--cp-card)); }
+.customer-portal .cp-strong { font-weight: 600; }
+.customer-portal .cp-sub { font-size: 12.5px; color: var(--cp-muted); }
+.customer-portal .cp-right { text-align: right; }
+
+/* ---------- cover timeline (dashboard hero) ---------- */
+.customer-portal .cp-hero { padding: 22px 24px 8px; }
+.customer-portal .cp-hero-top { display: flex; align-items: flex-end; gap: 26px; flex-wrap: wrap; margin-bottom: 22px; }
+.customer-portal .cp-hero-top h2 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.015em; }
+.customer-portal .cp-hero-top p { margin: 3px 0 0; font-size: 13.5px; color: var(--cp-muted); max-width: 52ch; }
+.customer-portal .cp-figure { margin-left: auto; text-align: right; }
+.customer-portal .cp-figure .cp-k { font-size: 12.5px; color: var(--cp-muted); }
+.customer-portal .cp-figure .cp-v { font-size: 26px; font-weight: 700; letter-spacing: -0.03em; }
+
+.customer-portal .cp-tl-months {
+  display: grid; grid-template-columns: repeat(12, 1fr);
+  border-bottom: 1px solid var(--cp-line); margin-bottom: 12px;
+}
+.customer-portal .cp-tl-months span {
+  font-size: 11.5px; color: var(--cp-muted); padding: 0 0 6px 6px; border-left: 1px solid var(--cp-line-soft);
+}
+.customer-portal .cp-tl-months span:first-child { border-left: 0; padding-left: 0; }
+.customer-portal .cp-tl-row { display: grid; grid-template-columns: 186px 1fr; align-items: center; gap: 14px; padding: 7px 0; }
+.customer-portal .cp-tl-label { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.customer-portal .cp-tl-label i { display: block; font-style: normal; font-size: 11.5px; color: var(--cp-muted); }
+.customer-portal .cp-tl-track {
+  position: relative; height: 24px;
+  background: repeating-linear-gradient(
+    to right, transparent 0, transparent calc(8.3333% - 1px),
+    var(--cp-line-soft) calc(8.3333% - 1px), var(--cp-line-soft) 8.3333%
+  );
+}
+.customer-portal .cp-tl-bar {
+  position: absolute; top: 4px; height: 16px; border-radius: 4px; display: flex;
+  align-items: center; justify-content: flex-end; padding-right: 7px; color: #fff;
+  font-size: 11px; font-weight: 600; border: 0;
+}
+.customer-portal .cp-tl-bar--active { background: var(--cp-live); }
+.customer-portal .cp-tl-bar--expiring { background: var(--cp-soon); }
+.customer-portal .cp-tl-bar--lapsed {
+  color: var(--cp-lapsed);
+  background: repeating-linear-gradient(45deg, #c9a093, #c9a093 4px, #ead5ce 4px, #ead5ce 8px);
+}
+.customer-portal .cp-tl-now { position: absolute; top: -6px; bottom: 0; width: 2px; background: var(--cp-ink); opacity: 0.75; }
+.customer-portal .cp-tl-now::after {
+  content: "today"; position: absolute; top: -16px; left: -13px;
+  font-size: 10.5px; color: var(--cp-ink); font-weight: 600;
+}
+
+/* ---------- action strip ---------- */
+.customer-portal .cp-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); gap: 14px; margin: 20px 0; }
+.customer-portal .cp-action {
+  background: var(--cp-card); border: 1px solid var(--cp-line); border-radius: var(--cp-radius);
+  padding: 16px 17px; text-align: left; text-decoration: none; display: block;
+  box-shadow: var(--cp-shadow-sm);
+}
+.customer-portal .cp-action:hover { border-color: var(--cp-live); transform: translateY(-2px); box-shadow: var(--cp-shadow-md); }
+.customer-portal .cp-action b { display: block; font-size: 14.5px; margin-bottom: 3px; }
+.customer-portal .cp-action span { font-size: 13px; color: var(--cp-muted); line-height: 1.45; display: block; }
+.customer-portal .cp-action--urgent { border-color: color-mix(in srgb, var(--cp-soon) 52%, var(--cp-line)); background: var(--cp-soon-bg); }
+
+/* ---------- policy certificate card ---------- */
+.customer-portal .cp-certs { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 16px; }
+.customer-portal .cp-cert { background: var(--cp-card); border: 1px solid var(--cp-line); border-radius: var(--cp-radius); overflow: hidden; position: relative; box-shadow: var(--cp-shadow-sm); transition: border-color var(--cp-ease), box-shadow var(--cp-ease), transform var(--cp-ease); }
+.customer-portal .cp-cert:hover { border-color: color-mix(in srgb, var(--cp-live) 44%, var(--cp-line)); box-shadow: var(--cp-shadow-md); transform: translateY(-2px); }
+.customer-portal .cp-cert-top { padding: 17px 19px 14px; border-bottom: 1px dashed var(--cp-line); }
+.customer-portal .cp-cert-top h3 {
+  margin: 0; font-family: "Newsreader", Georgia, serif; font-size: 21px; font-weight: 500;
+  letter-spacing: -0.01em; line-height: 1.2;
+}
+.customer-portal .cp-cert-top .cp-ins { font-size: 12.5px; color: var(--cp-muted); margin-top: 5px; }
+.customer-portal .cp-cert-body { padding: 14px 19px 17px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 10px; }
+.customer-portal .cp-fld .cp-k { font-size: 11.5px; color: var(--cp-muted); }
+.customer-portal .cp-fld .cp-v { font-size: 14.5px; font-weight: 600; }
+.customer-portal .cp-fld .cp-v--plain { font-weight: 500; font-size: 14px; }
+.customer-portal .cp-cert-foot {
+  padding: 11px 19px; background: var(--cp-surface-soft); border-top: 1px solid var(--cp-line-soft);
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+}
+.customer-portal .cp-cert-status { position: absolute; top: 17px; right: 17px; }
+
+/* ---------- claim tracker ---------- */
+.customer-portal .cp-track { display: flex; margin-top: 9px; }
+.customer-portal .cp-track-step { flex: 1; height: 4px; background: var(--cp-line); border-radius: 2px; margin-right: 3px; }
+.customer-portal .cp-track-step--done { background: var(--cp-live); }
+.customer-portal .cp-track-step--now { background: var(--cp-soon); }
+.customer-portal .cp-track-labels { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--cp-muted); margin-top: 6px; }
+
+/* ---------- forms ---------- */
+.customer-portal label { display: block; font-size: 13.5px; font-weight: 600; margin: 16px 0 6px; }
+.customer-portal input,
+.customer-portal select,
+.customer-portal textarea {
+  width: 100%; padding: 11px 13px; border: 1px solid var(--cp-line);
+  border-radius: var(--cp-radius-sm); font: inherit; background: var(--cp-card); color: inherit;
+}
+.customer-portal input:focus,
+.customer-portal select:focus,
+.customer-portal textarea:focus {
+  outline: 2px solid var(--cp-ink); outline-offset: 1px; border-color: var(--cp-ink);
+}
+.customer-portal .cp-field-error { color: var(--cp-lapsed); font-size: 12.5px; margin-top: 5px; }
+.customer-portal .cp-notice {
+  border: 1px solid var(--cp-lapsed); background: var(--cp-lapsed-bg); color: var(--cp-lapsed);
+  padding: 11px 14px; border-radius: 8px; font-size: 13.5px; margin-top: 16px;
+}
+.customer-portal .cp-notice--success {
+  border-color: var(--cp-live); background: var(--cp-live-bg); color: var(--cp-live);
+}
+.customer-portal .cp-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+.customer-portal .cp-span-2 { grid-column: 1 / -1; }
+
+/* ---------- login ---------- */
+.customer-portal .cp-login { min-height: 100vh; display: grid; grid-template-columns: 1.05fr 1fr; }
+.customer-portal .cp-login-art {
+  background: linear-gradient(145deg, var(--cp-ink), var(--cp-ink-soft)); color: #fff; padding: clamp(2rem, 6vw, 5rem);
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.customer-portal .cp-entry-brand { font-size: 17px; }
+.customer-portal .cp-entry-list { color: #cbdce2; font-size: 14px; line-height: 1.8; margin: 0; padding-left: 1.1rem; }
+.customer-portal .cp-entry-cta { width: 100%; text-align: center; }
+.customer-portal .cp-entry-footnote { font-size: 12.5px; color: #9cbac4; }
+.customer-portal .cp-login-art h2 {
+  font-family: "Newsreader", Georgia, serif; font-weight: 400; font-size: 38px;
+  line-height: 1.18; letter-spacing: -0.02em; max-width: 15ch; margin: 0;
+}
+.customer-portal .cp-login-art p { color: #9cbac4; max-width: 40ch; font-size: 15px; line-height: 1.6; }
+.customer-portal .cp-login-form { position: relative; display: grid; place-items: center; padding: clamp(2rem, 6vw, 5rem); background: var(--cp-paper); }
+.customer-portal .cp-entry-theme-toggle { position: absolute; top: 24px; right: 24px; }
+.customer-portal .cp-formbox { width: 100%; max-width: 400px; padding: clamp(1.5rem, 4vw, 2.5rem); background: var(--cp-card); border: 1px solid var(--cp-line); border-radius: var(--cp-radius); box-shadow: var(--cp-shadow-md); }
+.customer-portal .cp-formbox h3 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.02em; }
+.customer-portal .cp-formbox .cp-lead { color: var(--cp-muted); font-size: 14px; margin: 0 0 26px; }
+.customer-portal .cp-formbox .cp-btn { width: 100%; margin-top: 24px; padding: 12px; }
+.customer-portal .cp-hint { font-size: 12.5px; color: var(--cp-muted); margin-top: 18px; line-height: 1.5; }
+
+/* ---------- states ---------- */
+.customer-portal .cp-empty { padding: 44px 24px; text-align: center; color: var(--cp-muted); }
+.customer-portal .cp-empty b { display: block; color: var(--cp-text); font-size: 15px; margin-bottom: 5px; }
+.customer-portal .cp-skeleton {
+  background: linear-gradient(90deg, var(--cp-surface-soft), var(--cp-card), var(--cp-surface-soft));
+  border-radius: 6px; height: 14px;
+}
+
+.customer-portal .mobile-nav-toggle { display: none; }
+
+/*
+ * Compatibility layer: the individual portal page components (Billing,
+ * Documents, Quotes, Contact, Account, Claim detail) still use the same
+ * class names as the admin app (.card, .field, .badge, etc.) so they
+ * don't need per-page rewrites. Re-skinning those classes here, scoped
+ * under .customer-portal, gives every page the new look for free.
+ */
+.customer-portal .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; gap: 1rem; flex-wrap: wrap; }
+.customer-portal .page-header-actions { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.customer-portal .eyebrow { margin: 0 0 0.3rem; color: var(--cp-live); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+.customer-portal h1 { margin: 0; font-size: 1.4rem; letter-spacing: -0.02em; }
+.customer-portal h2 { margin: 0 0 0.6rem; font-size: 15.5px; font-weight: 600; letter-spacing: -0.01em; }
+
+.customer-portal .card { background: var(--cp-card); border: 1px solid var(--cp-line); border-radius: var(--cp-radius); padding: 1.5rem; box-shadow: var(--cp-shadow-sm); }
+.customer-portal .card + .card { margin-top: 1.1rem; }
+
+.customer-portal .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.9rem; }
+@media (max-width: 900px) { .customer-portal .form-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .customer-portal .form-grid { grid-template-columns: 1fr; } }
+.customer-portal .field { display: flex; flex-direction: column; gap: 0.3rem; }
+.customer-portal .field label { margin: 0; }
+.customer-portal .field.span-2 { grid-column: span 2; }
+.customer-portal .form-actions { display: flex; gap: 0.6rem; margin-top: 1.5rem; flex-wrap: wrap; }
+
+.customer-portal .flash { padding: 0.7rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; border-left: 3px solid currentColor; font-weight: 600; }
+.customer-portal .flash-error { color: var(--cp-lapsed); background: var(--cp-lapsed-bg); }
+.customer-portal .flash-success { color: var(--cp-live); background: var(--cp-live-bg); }
+
+.customer-portal .btn {
+  border: 1px solid var(--cp-ink); background: var(--cp-ink); color: #fff; padding: 8px 15px;
+  border-radius: 7px; font-size: 14px; font-weight: 600; text-decoration: none; display: inline-flex;
+  align-items: center; gap: 6px; line-height: 1.3;
+}
+.customer-portal .btn:hover { background: var(--cp-ink-soft); }
+.customer-portal .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.customer-portal .btn-secondary { background: transparent; color: var(--cp-ink); border-color: var(--cp-line); }
+.customer-portal .btn-secondary:hover { background: var(--cp-surface-soft); }
+.customer-portal .btn-sm { padding: 5px 11px; font-size: 13px; }
+
+.customer-portal .table-wrap { overflow-x: auto; }
+.customer-portal .empty-state { text-align: center; padding: 2.5rem 1rem; color: var(--cp-muted); }
+.customer-portal td.num, .customer-portal th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.customer-portal .detail-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.9rem 1.5rem; }
+@media (max-width: 900px) { .customer-portal .detail-grid { grid-template-columns: repeat(2, 1fr); } }
+.customer-portal .detail-grid .k { font-size: 0.76rem; color: var(--cp-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.customer-portal .detail-grid .v { font-size: 0.92rem; margin-top: 0.15rem; font-weight: 600; }
+
+.customer-portal .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+.customer-portal .kpi-card { display: flex; flex-direction: column; gap: 0.35rem; padding: 1.1rem; text-decoration: none; color: inherit; }
+.customer-portal .kpi-label { font-size: 0.78rem; color: var(--cp-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.customer-portal .kpi-value { font-family: var(--cp-font-display, "Newsreader", Georgia, serif); font-size: 1.5rem; font-weight: 700; line-height: 1.15; }
+.customer-portal .kpi-trend { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.72rem; font-weight: 600; color: var(--cp-muted); }
+
+/* status badge — same slugs the shared <StatusBadge> emits, re-mapped to the cp palette */
+.customer-portal .badge { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.55rem; border-radius: 999px; font-size: 0.76rem; font-weight: 600; background: var(--cp-surface-soft); color: var(--cp-muted); }
+.customer-portal .badge-paid, .customer-portal .badge-active, .customer-portal .badge-verified,
+.customer-portal .badge-approved, .customer-portal .badge-settled, .customer-portal .badge-done,
+.customer-portal .badge-bound, .customer-portal .badge-active-client, .customer-portal .badge-completed,
+.customer-portal .badge-sent, .customer-portal .badge-create, .customer-portal .badge-accepted,
+.customer-portal .badge-replied, .customer-portal .badge-converted, .customer-portal .badge-proposal-sent {
+  color: var(--cp-live); background: var(--cp-live-bg);
+}
+.customer-portal .badge-part-paid, .customer-portal .badge-pending, .customer-portal .badge-filed,
+.customer-portal .badge-under-review, .customer-portal .badge-awaiting-documents, .customer-portal .badge-open,
+.customer-portal .badge-new, .customer-portal .badge-market-submission, .customer-portal .badge-submission,
+.customer-portal .badge-update, .customer-portal .badge-review, .customer-portal .badge-normal,
+.customer-portal .badge-submitted, .customer-portal .badge-resubmitted, .customer-portal .badge-in-review,
+.customer-portal .badge-quoted, .customer-portal .badge-queried, .customer-portal .badge-x-date-logged,
+.customer-portal .badge-underwriter-negotiation, .customer-portal .badge-quotes-received,
+.customer-portal .badge-submitted-to-insurer {
+  color: var(--cp-soon); background: var(--cp-soon-bg);
+}
+.customer-portal .badge-unpaid, .customer-portal .badge-rejected, .customer-portal .badge-repudiated,
+.customer-portal .badge-lost, .customer-portal .badge-essential, .customer-portal .badge-delete,
+.customer-portal .badge-high, .customer-portal .badge-overdue, .customer-portal .badge-declined,
+.customer-portal .badge-failed {
+  color: var(--cp-lapsed); background: var(--cp-lapsed-bg);
+}
+.customer-portal .badge-cancelled, .customer-portal .badge-closed, .customer-portal .badge-prospect,
+.customer-portal .badge-former-client, .customer-portal .badge-planned, .customer-portal .badge-optional,
+.customer-portal .badge-not-configured, .customer-portal .badge-low, .customer-portal .badge-draft,
+.customer-portal .badge-not-started, .customer-portal .badge-expired, .customer-portal .badge-read {
+  color: var(--cp-muted); background: var(--cp-surface-soft);
+}
+
+@media (max-width: 900px) {
+  .customer-portal .cp-shell { grid-template-columns: 1fr; }
+  .customer-portal .cp-rail { position: static; height: auto; flex-direction: row; align-items: center; overflow-x: auto; }
+  .customer-portal .cp-brandbox { border-bottom: 0; border-right: 1px solid var(--cp-ink-line); white-space: nowrap; }
+  .customer-portal .cp-navlist { flex-direction: row; padding: 10px; }
+  .customer-portal .cp-navbtn { white-space: nowrap; }
+  .customer-portal .cp-railfoot { display: none; }
+  .customer-portal .cp-wrap,
+  .customer-portal .cp-topbar { padding-left: 18px; padding-right: 18px; }
+  .customer-portal .cp-tl-row { grid-template-columns: 1fr; gap: 4px; }
+  .customer-portal .cp-login { grid-template-columns: 1fr; }
+  .customer-portal .cp-login-art { display: none; }
+  .customer-portal .cp-form-grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .customer-portal * { transition: none !important; animation: none !important; }
+}

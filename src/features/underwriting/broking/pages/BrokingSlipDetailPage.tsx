@@ -5,10 +5,15 @@ import {
   fetchBrokingSlip,
   approveBrokingSlip,
   recordMarketSubmission,
+  updateSubmissionResponse,
   getBrokingSlipPdfUrl,
+  MARKET_RESPONSES,
+  type BrokingSlipSubmission,
   type PolicyDocumentResult
 } from "../api/brokingSlips";
 import { PolicyDocumentPanel } from "../components/PolicyDocumentPanel";
+import { PlacementStatusPanel } from "../components/PlacementStatusPanel";
+import { Modal } from "@/shared/components/exec/Modal";
 import { fmtMoney } from "@/shared/lib/format";
 
 export function BrokingSlipDetailPage() {
@@ -21,6 +26,10 @@ export function BrokingSlipDetailPage() {
   const [recipientEmail, setRecipientEmail] = useState("");
   const [responseStatus, setResponseStatus] = useState("Pending");
   const [responseNotes, setResponseNotes] = useState("");
+  // The submission whose insurer response is being recorded.
+  const [answering, setAnswering] = useState<BrokingSlipSubmission | null>(null);
+  const [answerStatus, setAnswerStatus] = useState("Quoted");
+  const [answerNotes, setAnswerNotes] = useState("");
 
   const { data: slip, isLoading, isError } = useQuery({
     queryKey: ["brokingSlip", slipId],
@@ -55,6 +64,21 @@ export function BrokingSlipDetailPage() {
     }
   });
 
+  const responseMutation = useMutation({
+    mutationFn: () => updateSubmissionResponse(slipId, answering!.id, { responseStatus: answerStatus, responseNotes: answerNotes }),
+    onSuccess: () => {
+      setAnswering(null);
+      queryClient.invalidateQueries({ queryKey: ["brokingSlip", slipId] });
+    }
+  });
+
+  function openResponse(sub: BrokingSlipSubmission) {
+    setAnswering(sub);
+    setAnswerStatus(sub.response_status === "Pending" ? "Quoted" : sub.response_status);
+    setAnswerNotes(sub.response_notes || "");
+    responseMutation.reset();
+  }
+
   if (isLoading) return <div className="loading-container">Loading broking slip...</div>;
   if (isError || !slip) return <div className="alert alert-danger">Broking slip not found.</div>;
 
@@ -62,6 +86,8 @@ export function BrokingSlipDetailPage() {
   const submissions = slip.submissions || [];
   const versions = slip.versions || [];
   const data = slip.data || {};
+  // A slip goes to market once approved and until it is finished (backend MARKET_OPEN).
+  const marketOpen = ["Approved", "Submitted", "Acknowledged", "Quoted", "Accepted", "Bound", "Placed", "Declined"].includes(slip.status);
 
   return (
     <div className="page-container">
@@ -96,7 +122,7 @@ export function BrokingSlipDetailPage() {
             Edit Slip
           </Link>
 
-          {slip.status !== "Approved" && slip.status !== "Placed" && (
+          {(slip.status === "Draft" || slip.status === "Under Review") && (
             <button
               type="button"
               className="btn btn-success"
@@ -107,13 +133,15 @@ export function BrokingSlipDetailPage() {
             </button>
           )}
 
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setShowSubmissionModal(true)}
-          >
-            + Log Market Submission
-          </button>
+          {marketOpen && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => { submissionMutation.reset(); setShowSubmissionModal(true); }}
+            >
+              + Log Market Submission
+            </button>
+          )}
         </div>
       </div>
 
@@ -122,6 +150,8 @@ export function BrokingSlipDetailPage() {
       )}
 
       <PolicyDocumentPanel slip={slip} justApproved={policyResult} />
+
+      <PlacementStatusPanel slip={slip} />
 
       {/* Key Summary Cards */}
       <div className="card" style={{ marginBottom: "1.5rem" }}>
@@ -233,9 +263,11 @@ export function BrokingSlipDetailPage() {
       <div className="card" style={{ marginBottom: "1.5rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
           <h3 className="card-title" style={{ margin: 0 }}>Market Submissions & Underwriter Log</h3>
-          <button type="button" className="btn btn-sm btn-outline" onClick={() => setShowSubmissionModal(true)}>
-            + Add Submission
-          </button>
+          {marketOpen && (
+            <button type="button" className="btn btn-sm btn-outline" onClick={() => { submissionMutation.reset(); setShowSubmissionModal(true); }}>
+              + Add Submission
+            </button>
+          )}
         </div>
 
         {submissions.length === 0 ? (
@@ -250,6 +282,7 @@ export function BrokingSlipDetailPage() {
                   <th>Submitted By</th>
                   <th>Response Status</th>
                   <th>Notes</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -263,7 +296,17 @@ export function BrokingSlipDetailPage() {
                         {sub.response_status}
                       </span>
                     </td>
-                    <td>{sub.response_notes || "—"}</td>
+                    <td>
+                      {sub.response_notes || "—"}
+                      {sub.responded_at && (
+                        <div className="text-muted" style={{ fontSize: "0.75rem" }}>
+                          Response recorded {new Date(sub.responded_at.replace(" ", "T") + "Z").toLocaleDateString("en-GB")}{sub.responded_by ? ` by ${sub.responded_by}` : ""}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <button type="button" className="btn btn-sm btn-secondary" onClick={() => openResponse(sub)}>Record response</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -303,74 +346,68 @@ export function BrokingSlipDetailPage() {
         )}
       </div>
 
-      {/* Submission Modal */}
-      {showSubmissionModal && (
-        <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: "500px" }}>
-            <h3>Log Market Submission</h3>
-            <div className="form-group" style={{ marginBottom: "1rem" }}>
-              <label className="form-label">Underwriter / Recipient Name</label>
-              <input
-                type="text"
-                className="form-control"
-                value={recipientName}
-                onChange={e => setRecipientName(e.target.value)}
-                placeholder="e.g. Leadway Assurance Underwriting Desk"
-              />
-            </div>
-
-            <div className="form-group" style={{ marginBottom: "1rem" }}>
-              <label className="form-label">Recipient Email</label>
-              <input
-                type="email"
-                className="form-control"
-                value={recipientEmail}
-                onChange={e => setRecipientEmail(e.target.value)}
-                placeholder="e.g. quotes@insurer.com"
-              />
-            </div>
-
-            <div className="form-group" style={{ marginBottom: "1rem" }}>
-              <label className="form-label">Response Status</label>
-              <select
-                className="form-control"
-                value={responseStatus}
-                onChange={e => setResponseStatus(e.target.value)}
-              >
-                <option value="Pending">Pending</option>
-                <option value="Quoted">Quoted</option>
-                <option value="Accepted">Accepted</option>
-                <option value="Declined">Declined</option>
-              </select>
-            </div>
-
-            <div className="form-group" style={{ marginBottom: "1.5rem" }}>
-              <label className="form-label">Notes / Quoted Terms</label>
-              <textarea
-                className="form-control"
-                rows={3}
-                value={responseNotes}
-                onChange={e => setResponseNotes(e.target.value)}
-                placeholder="Enter quotation notes, rate, or underwriter feedback..."
-              />
-            </div>
-
-            <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end" }}>
-              <button type="button" className="btn btn-outline" onClick={() => setShowSubmissionModal(false)}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => submissionMutation.mutate()}
-                disabled={submissionMutation.isPending}
-              >
-                {submissionMutation.isPending ? "Saving..." : "Record Submission"}
-              </button>
-            </div>
-          </div>
+      <Modal
+        open={showSubmissionModal}
+        title="Log market submission"
+        onClose={() => setShowSubmissionModal(false)}
+        footer={
+          <>
+            <button type="button" className="btn btn-secondary" onClick={() => setShowSubmissionModal(false)}>Cancel</button>
+            <button type="button" className="btn" onClick={() => submissionMutation.mutate()} disabled={submissionMutation.isPending || (!recipientName.trim() && !recipientEmail.trim())}>
+              {submissionMutation.isPending ? "Saving…" : "Record submission"}
+            </button>
+          </>
+        }
+      >
+        {submissionMutation.isError && <div className="flash flash-error">{(submissionMutation.error as Error).message}</div>}
+        <div className="field">
+          <label htmlFor="sub_recipient">Insurer / underwriter</label>
+          <input id="sub_recipient" type="text" value={recipientName} onChange={e => setRecipientName(e.target.value)} placeholder="e.g. Leadway Assurance underwriting desk" />
         </div>
-      )}
+        <div className="field">
+          <label htmlFor="sub_email">Email</label>
+          <input id="sub_email" type="email" value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)} placeholder="e.g. quotes@insurer.com" />
+        </div>
+        <div className="field">
+          <label htmlFor="sub_response">Response so far</label>
+          <select id="sub_response" value={responseStatus} onChange={e => setResponseStatus(e.target.value)}>
+            {MARKET_RESPONSES.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="sub_notes">Notes / quoted terms</label>
+          <textarea id="sub_notes" rows={3} value={responseNotes} onChange={e => setResponseNotes(e.target.value)} placeholder="Rate, terms or underwriter feedback" />
+        </div>
+      </Modal>
+
+      <Modal
+        open={answering !== null}
+        title={`Insurer response: ${answering?.recipient_name || answering?.recipient_email || "insurer"}`}
+        onClose={() => setAnswering(null)}
+        footer={
+          <>
+            <button type="button" className="btn btn-secondary" onClick={() => setAnswering(null)}>Cancel</button>
+            <button type="button" className="btn" onClick={() => responseMutation.mutate()} disabled={responseMutation.isPending}>
+              {responseMutation.isPending ? "Saving…" : "Save response"}
+            </button>
+          </>
+        }
+      >
+        {responseMutation.isError && <div className="flash flash-error">{(responseMutation.error as Error).message}</div>}
+        <div className="field">
+          <label htmlFor="answer_status">Response</label>
+          <select id="answer_status" value={answerStatus} onChange={e => setAnswerStatus(e.target.value)}>
+            {MARKET_RESPONSES.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="answer_notes">Notes / quoted terms</label>
+          <textarea id="answer_notes" rows={3} value={answerNotes} onChange={e => setAnswerNotes(e.target.value)} />
+        </div>
+        <p className="text-muted" style={{ fontSize: "0.85rem", marginBottom: 0 }}>
+          This records the insurer's answer. Move the slip itself (Quote received, Cover bound…) under Placement status.
+        </p>
+      </Modal>
     </div>
   );
 }

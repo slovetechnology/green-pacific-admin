@@ -1,3 +1,4 @@
+import { ClaimServicePanel, type ReserveMovement, type ServiceStage } from "../components/ClaimServicePanel";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,6 +10,7 @@ import { fmtMoney, fmtMoneyShort } from "@/shared/lib/format";
 import { MetricStrip, type Metric } from "@/shared/components/exec/MetricStrip";
 import { Tabs, type TabDef } from "@/shared/components/exec/Tabs";
 import "@/shared/styles/executive.css";
+import { ClaimMoneyPanel, type ClaimMoney } from "../components/ClaimMoneyPanel";
 
 interface Claim {
   id: number;
@@ -48,6 +50,20 @@ interface Transaction {
   policy_no: string | null;
   class_of_business: string | null;
   insurer_id: number;
+  insurer_name?: string | null;
+  // Set when the policy is co-insured: every insurer of the placement and its share of the risk.
+  coinsurance?: { id: number; insurer: string; credit_note_no: string | null; proportion: number }[] | null;
+}
+
+const pct = (p: number) => `${Number((p * 100).toFixed(4))}%`;
+
+// Each insurer's part of an amount, to the kobo, the rounding residue on the largest share (as claimPolicy.js does).
+function sharesOf(amount: number, members: { proportion: number }[]) {
+  const total = Math.round((amount || 0) * 100);
+  const parts = members.map((m) => Math.round(total * m.proportion));
+  const largest = members.reduce((best, m, i) => (m.proportion > members[best].proportion ? i : best), 0);
+  parts[largest] += total - parts.reduce((s, p) => s + p, 0);
+  return parts.map((p) => p / 100);
 }
 
 interface ClaimEvent {
@@ -73,6 +89,9 @@ interface Response {
   documents: DocumentRow[];
   statuses: string[];
   docTypes: string[];
+  claimMoney?: ClaimMoney;
+  service?: { stages: ServiceStage[]; overdue: number };
+  reserveMovements?: ReserveMovement[];
 }
 
 export function ClaimDetailPage() {
@@ -185,6 +204,8 @@ export function ClaimDetailPage() {
   const tabs: TabDef[] = [
     { id: "details", label: "Claim details" },
     { id: "insurer", label: "Insurer & adjuster" },
+    { id: "service", label: "Service & reserve", count: data.service?.overdue || 0 },
+    { id: "money", label: "Claim money", count: data.claimMoney?.payments.filter((p) => !p.voided_at).length || 0 },
     { id: "documents", label: "Documents", count: documents.length },
     { id: "history", label: "History", count: events.length },
   ];
@@ -250,7 +271,14 @@ export function ClaimDetailPage() {
             <div className="k">Related Policy</div>
             <div className="v">
               {transaction ? (
-                <Link to={`/transactions/${transaction.id}`}>{transaction.policy_no || `#${transaction.id}`}</Link>
+                <>
+                  <Link to={`/transactions/${transaction.id}`}>{transaction.policy_no || `#${transaction.id}`}</Link>
+                  {transaction.coinsurance ? (
+                    <small> · co-insured: {transaction.coinsurance.map((m) => `${m.insurer} (${pct(m.proportion)})`).join(", ")}</small>
+                  ) : (
+                    transaction.insurer_name && <small> · {transaction.insurer_name}</small>
+                  )}
+                </>
               ) : (
                 "—"
               )}
@@ -343,6 +371,42 @@ export function ClaimDetailPage() {
 
       {tab === "insurer" && (
       <div role="tabpanel" id="claim-panel-insurer" aria-labelledby="claim-tab-insurer" tabIndex={0} className="exec-tabpanel">
+      {transaction?.coinsurance && (
+        <div className="card">
+          <h2>Co-insurers</h2>
+          <p className="page-lede">
+            The policy is co-insured, so the loss is shared by its insurers in proportion to their shares of the risk. Register the loss with each.
+          </p>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Insurer</th>
+                  <th>Credit note</th>
+                  <th className="num">Share</th>
+                  <th className="num">Claimed</th>
+                  <th className="num">Reserve</th>
+                  <th className="num">Approved</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transaction.coinsurance.map((m, i, all) => (
+                  <tr key={m.id}>
+                    <td data-label="Insurer">
+                      <Link to={`/transactions/${m.id}`}>{m.insurer}</Link>
+                    </td>
+                    <td data-label="Credit note">{m.credit_note_no || "—"}</td>
+                    <td data-label="Share" className="num">{pct(m.proportion)}</td>
+                    <td data-label="Claimed" className="num">{fmtMoney(sharesOf(claim.claimed_amount, all)[i])}</td>
+                    <td data-label="Reserve" className="num">{fmtMoney(sharesOf(claim.reserve_amount, all)[i])}</td>
+                    <td data-label="Approved" className="num">{fmtMoney(sharesOf(claim.approved_amount, all)[i])}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
       <div className="card">
         <h2>Loss Registration with Insurer</h2>
         <div className="detail-grid">
@@ -478,6 +542,18 @@ export function ClaimDetailPage() {
         </RoleGate>
       </div>
 
+      </div>
+      )}
+
+      {tab === "service" && (
+      <div role="tabpanel" id="claim-panel-service" aria-labelledby="claim-tab-service" tabIndex={0} className="exec-tabpanel">
+        <ClaimServicePanel claimId={String(claimId)} stages={data.service?.stages ?? []} reserve={Number(claim.reserve_amount) || 0} movements={data.reserveMovements ?? []} />
+      </div>
+      )}
+
+      {tab === "money" && data.claimMoney && (
+      <div role="tabpanel" id="claim-panel-money" aria-labelledby="claim-tab-money" tabIndex={0} className="exec-tabpanel">
+        <ClaimMoneyPanel claimId={String(claimId)} money={data.claimMoney} approvedAmount={Number(claim.approved_amount) || 0} />
       </div>
       )}
 

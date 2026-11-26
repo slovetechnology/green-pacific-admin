@@ -23,7 +23,25 @@ export interface BrokingSlipSubmission {
   submitted_at: string;
   response_status: string;
   response_notes?: string;
+  responded_at?: string | null;
+  responded_by?: string | null;
 }
+
+/** One placement status move (brokingSlips.js recordSlipStatus). */
+export interface BrokingSlipStatusStep {
+  id: number;
+  from_status: string | null;
+  to_status: string;
+  effective_date: string | null;
+  reason: string | null;
+  changed_by: string | null;
+  changed_at: string;
+}
+
+/** What an insurer can say to a market submission (backend MARKET_RESPONSES). */
+export const MARKET_RESPONSES = ["Pending", "Acknowledged", "Quoted", "Accepted", "Declined"] as const;
+// Moves that need a reason (backend REASON_REQUIRED, plus the step back to Draft).
+export const SLIP_REASON_STATUSES = ["Declined", "Cancelled", "Expired", "Draft"];
 
 export interface BrokingSlipVersion {
   id: number;
@@ -80,6 +98,9 @@ export interface BrokingSlip {
   marketShares?: BrokingSlipMarketShare[];
   submissions?: BrokingSlipSubmission[];
   versions?: BrokingSlipVersion[];
+  // Placement status history, newest first, and the moves allowed from the current status.
+  statusHistory?: BrokingSlipStatusStep[];
+  nextStatuses?: string[];
 }
 
 export interface BrokingSlipTemplateConfig {
@@ -276,7 +297,10 @@ export async function generatePolicyDocument(slipId: number): Promise<PolicyDocu
 // <iframe src> would not carry the session cookie.
 export async function fetchPolicyDocumentBlob(slipId: number): Promise<Blob> {
   const res = await fetch(apiUrl(`/api/broking-slips/${slipId}/policy-document/file`), { credentials: "include" });
-  if (!res.ok) throw new Error("The policy document could not be loaded.");
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data && typeof data.error === "string" && data.error ? data.error : "The policy document could not be loaded.");
+  }
   return res.blob();
 }
 
@@ -326,4 +350,16 @@ export async function fetchPlacement(id: number): Promise<PlacementPayload> {
 
 export function getBrokingSlipPdfUrl(id: number): string {
   return apiUrl(`/api/broking-slips/${id}/pdf`);
+}
+
+/** A placement step (PATCH /status): only the moves in nextStatuses; a reason where SLIP_REASON_STATUSES says. */
+export async function moveSlipStatus(id: number, payload: { status: string; reason?: string; effectiveDate?: string }): Promise<BrokingSlip> {
+  const res = await apiFetch<{ slip: BrokingSlip }>(`/api/broking-slips/${id}/status`, { method: "PATCH", body: payload });
+  return res.slip;
+}
+
+/** Records the insurer's response to a market submission logged earlier. */
+export async function updateSubmissionResponse(id: number, submissionId: number, payload: { responseStatus: string; responseNotes?: string }): Promise<BrokingSlipSubmission> {
+  const res = await apiFetch<{ submission: BrokingSlipSubmission }>(`/api/broking-slips/${id}/submissions/${submissionId}`, { method: "PATCH", body: payload });
+  return res.submission;
 }

@@ -10,6 +10,46 @@
  * Rules that must not outrank a feature stylesheet use :where(), which adds no specificity.
  */
 
+/* ---- Pointer cursor on everything meant to be clicked ----
+   Zero specificity, so a feature's own cursor (grab on pipeline cards, help on flags, progress) still wins. */
+:where(
+  button, .btn, a[href], summary, label[for], select,
+  [role="button"], [role="tab"], [role="link"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"],
+  input[type="checkbox"], input[type="radio"], input[type="file"], input[type="submit"], input[type="button"],
+  input[type="reset"], input[type="color"], input[type="range"],
+  tr.is-clickable, .is-clickable
+) { cursor: pointer; }
+/* A pseudo-element can't go inside :where() (it would void the whole rule above). */
+input[type="file"]::file-selector-button { cursor: pointer; }
+:where(button, select, input, .btn, [role="button"], [role="tab"]):where(:disabled, [aria-disabled="true"]) { cursor: not-allowed; }
+
+/* ---- A button whose click started a save shows a spinner until it finishes ----
+   shared/api/client.ts sets data-loading on the pressed button while the request it started is running
+   (every mutating apiFetch, upload or download). It also blocks a second click, so a slow Add can't create
+   the record twice.
+   Only for buttons with no pending state of their own: a button its page disables while saving (the usual
+   "Saving…" pattern, e.g. Sign in) or one that draws its own spinner keeps just that, never a second one. */
+:where(button, .btn, [role="button"])[data-loading] { pointer-events: none; }
+:where(button, .btn, [role="button"])[data-loading]:not(:disabled, [aria-disabled="true"]) { cursor: progress; opacity: 0.8; }
+:where(button, .btn, [role="button"])[data-loading]:not(:disabled, [aria-disabled="true"])::after {
+  content: "";
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  margin-left: 0.5em;
+  vertical-align: -0.125em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: gp-button-spin 0.7s linear infinite;
+}
+/* Kept apart so a browser without :has() drops only this rule, not the spinner above. */
+:where(button, .btn, [role="button"])[data-loading]:has([class*="spinner"], [class*="spin"], [role="progressbar"])::after { content: none; }
+@keyframes gp-button-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  :where(button, .btn, [role="button"])[data-loading]::after { animation-duration: 2s; }
+}
+
 /* ---- Inputs with no type (most of the forms) and the other text-like types get the app's input look ----
    app.css styles input[type=text] etc., but a bare <input> has no type attribute, so it fell back to the
    browser's 30px default. */

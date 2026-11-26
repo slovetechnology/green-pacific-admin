@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/shared/api/client";
 import { RoleGate } from "@/app/guards/RoleGate";
@@ -74,6 +74,9 @@ export function StatutoryReportsPage() {
           <h1>NAICOM Statutory Reports</h1>
         </div>
         <div className="page-header-actions">
+          <Link className="btn-secondary" to="/compliance/returns">Returns workbench</Link>
+          <Link className="btn-secondary" to="/compliance/statutory-registers">Registers</Link>
+          <Link className="btn-secondary" to="/compliance/statutory-settings">Settings</Link>
           <select value={year} onChange={(e) => updateParams({ year: e.target.value })}>
             {years.map((y) => (
               <option key={y} value={y}>{y}</option>
@@ -83,15 +86,16 @@ export function StatutoryReportsPage() {
       </div>
       <p className="page-lede">
         Every return the brokerage owes NAICOM for the year, filed or not. Obligations come from the
-        statutory calendar, so a report that has never been started still appears here.
+        statutory calendar, so a report that has never been started still appears here. Each filing goes
+        Draft → Reviewed → Approved → Submitted, and filings marked "auto-populated" carry NAICOM schedules
+        worked out from the ERP's records.
       </p>
 
       {error && <div className="flash flash-error">{error}</div>}
       {brokerUnconfigured && (
         <div className="flash flash-error">
-          The broker licence details are not configured, so no report can be filed yet. Set{" "}
-          <code>BROKER_RBC_NUMBER</code> and <code>BROKER_LICENCE_EXPIRY</code> in <code>backend/.env</code>{" "}
-          (see <code>backend/.env.example</code>), then restart the backend.
+          The broker licence details are not configured, so no report can be filed yet. Enter the NAICOM
+          licence number and licence expiry date under <Link to="/compliance/statutory-settings">Settings</Link>.
         </div>
       )}
 

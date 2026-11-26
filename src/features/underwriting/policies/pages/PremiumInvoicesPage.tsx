@@ -9,12 +9,16 @@ import { OverdueBadge } from "@/shared/components/OverdueBadge";
 import { REMINDER_LABELS, type PremiumInvoice, type PremiumInvoicesResponse } from "../lib/premiumInvoices";
 import { ListSearch } from "@/shared/components/ListSearch";
 import { useRowSearch } from "@/shared/hooks/useRowSearch";
+import { useAuth } from "@/features/platform/auth/AuthContext";
+import { InstalmentPlanModal } from "../components/InstalmentPlanModal";
 
 // Open Agency Bill premium invoices (debit notes). Backend: lib/premiumInvoices.js.
 export function PremiumInvoicesPage() {
   const queryClient = useQueryClient();
   const [message, setMessage] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "overdue">("overdue");
+  const [planFor, setPlanFor] = useState<PremiumInvoice | null>(null);
+  const { user } = useAuth();
   const { data, isLoading } = useQuery({
     queryKey: ["premium-invoices"],
     queryFn: () => api.get<PremiumInvoicesResponse>("/api/premium-invoices"),
@@ -59,9 +63,30 @@ export function PremiumInvoicesPage() {
           </span>
         )),
     },
-    { key: "amount", header: "Amount due", render: (inv) => fmtMoney(inv.amountDue) },
+    {
+      key: "amount",
+      header: "Amount due",
+      render: (inv) => (
+        <>
+          {fmtMoney(inv.amountDue)}
+          {inv.plan?.current && <div className="text-muted" style={{ fontSize: "0.8rem" }}>Instalment {inv.plan.current.seq} of {inv.plan.instalments.length}: {fmtMoney(inv.plan.current.unpaid)}</div>}
+        </>
+      ),
+    },
     { key: "due", header: "Due", render: (inv) => inv.dueDate || "—" },
     { key: "status", header: "Status", render: (inv) => <OverdueBadge invoice={inv} /> },
+    {
+      key: "plan",
+      header: "Instalments",
+      render: (inv) =>
+        inv.plan ? (
+          <button type="button" className="link-button" onClick={() => setPlanFor(inv)}>Plan of {inv.plan.instalments.length}</button>
+        ) : user?.canWrite ? (
+          <button type="button" className="btn btn-sm btn-secondary" onClick={() => setPlanFor(inv)}>Set up</button>
+        ) : (
+          "—"
+        ),
+    },
     {
       key: "reminders",
       header: "Reminders sent",
@@ -129,6 +154,7 @@ export function PremiumInvoicesPage() {
         getRowKey={(inv) => inv.invoiceKey}
         emptyMessage={filter === "overdue" ? "No overdue premium invoices." : "No open premium invoices."}
       />
+      {planFor && <InstalmentPlanModal invoice={planFor} canWrite={Boolean(user?.canWrite)} onClose={() => setPlanFor(null)} />}
     </div>
   );
 }

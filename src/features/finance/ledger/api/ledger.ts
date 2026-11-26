@@ -115,7 +115,7 @@ export const KIND_LABEL: Record<JournalRow["kind"], string> = {
 
 export const SOURCE_LABEL: Record<string, string> = {
   receipt: "Receipt", remittance: "Insurer remittance", settlement: "Insurer settlement", commission_statement: "Commission statement",
-  producer_payable: "Producer payable", expense: "Expense", investment_income: "Investment income", year_close: "Year-end close",
+  producer_payable: "Producer payable", expense: "Expense", investment_income: "Investment income", claim_payment: "Claim money", year_close: "Year-end close",
 };
 
 /** Downloads a statement as .xlsx or .csv with the same filters as the screen. */

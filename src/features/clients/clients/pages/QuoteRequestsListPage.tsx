@@ -71,7 +71,7 @@ export function QuoteRequestsListPage() {
     <div className="exec">
       <header className="exec-header">
         <div>
-          <span className="exec-eyebrow">Inbox</span>
+          <span className="exec-eyebrow">Customer Portal &amp; Website</span>
           <h1>Quote Requests</h1>
         </div>
       </header>

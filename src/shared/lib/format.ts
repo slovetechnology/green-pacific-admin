@@ -6,6 +6,13 @@ export function fmtMoney(value: unknown): string {
   return `₦${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+/** An amount in a policy currency (G8): ₦ for naira, else the currency code. */
+export function fmtCurrency(value: unknown, currency = "NGN"): string {
+  if (!currency || currency === "NGN") return fmtMoney(value);
+  const n = Number(value);
+  return `${currency} ${(Number.isFinite(n) ? n : 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 export function fmtMoneyShort(value: unknown): string {
   const n = Number(value);
   if (!Number.isFinite(n)) return "₦0";

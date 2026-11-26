@@ -15,7 +15,34 @@ export interface BrokerInfo {
   contactEmail: string;
   contactPhone: string;
   principalOfficer: string;
+  tin?: string;
+  mdCeo?: string;
+  complianceOfficer?: string;
 }
+
+// ---- computed NAICOM returns (backend returns/returnRegistry.js) ----
+
+export type ColumnType = "text" | "money" | "number" | "pct" | "date";
+export interface ReturnColumn { key: string; label: string; type: ColumnType }
+export type ReturnRow = Record<string, string | number | boolean | null>;
+export interface TableSection { type: "table"; key: string; title: string; note?: string; columns: ReturnColumn[]; rows: ReturnRow[]; totals?: ReturnRow }
+export interface KvSection { type: "kv"; key: string; title: string; note?: string; items: { label: string; value: string | number | null; type?: ColumnType }[] }
+export type ReturnSection = TableSection | KvSection;
+export interface Finding { level: "error" | "warning" | "info"; message: string }
+export interface ReturnPeriod { frequency: string; year: number; index: number; label: string; start: string; end: string }
+export interface ReturnOutput {
+  code: string;
+  name: string;
+  category: string;
+  period: ReturnPeriod;
+  company: { name: string; licenceNo: string; rcNumber: string; address: string };
+  generatedAt: string;
+  sections: ReturnSection[];
+  validations: Finding[];
+  counts: { error: number; warning: number; info: number };
+}
+export interface CatalogEntry { code: string; name: string; category: string; frequencies: string[]; description: string }
+export interface CatalogResponse { returns: CatalogEntry[]; frequencies: string[] }
 
 export interface PremiumLine {
   policyNumber: string;
@@ -115,6 +142,7 @@ export interface ReportPayload {
   premiumRegister?: PremiumRegister;
   claimsRegister?: ClaimsRegister;
   insurerRemittances?: InsurerRemittances;
+  computed?: Record<string, ReturnOutput>;
   narrative?: Record<string, string>;
   [key: string]: unknown;
 }
@@ -144,6 +172,17 @@ export interface StatutoryReport {
   payload: ReportPayload;
   isOverdue: boolean;
   legalBasis: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  approval_note: string | null;
+  approved_hash: string | null;
+  workflow_notes: string | null;
+  schedules: string[];
+  scheduleCounts: { error: number; warning: number; info: number };
+  integrity: "intact" | "changed" | null;
+  filingReference?: string | null;
 }
 
 export interface CalendarEntry {
@@ -187,6 +226,7 @@ export interface RegistryEntry {
   legalBasis: string;
   description: string;
   derivedFrom?: string;
+  schedules: string[];
   autoPopulated: boolean;
   periodsPerYear: number;
 }
@@ -203,10 +243,12 @@ export interface RegistryResponse {
   frequencies: string[];
   statuses: string[];
   broker: BrokerInfo;
+  canApprove: boolean;
 }
 
 export interface ReportResponse {
   report: StatutoryReport;
+  canApprove?: boolean;
   sourcePeriod: { year: number; month: number; status: string };
 }
 
@@ -216,4 +258,65 @@ export const EDITABLE_STATUSES = ["Draft", "Queried"];
 
 export function isEditable(report: StatutoryReport): boolean {
   return EDITABLE_STATUSES.includes(report.status);
+}
+
+// ---- settings and registers ----
+
+export interface StatutorySettings {
+  company: Record<string, string>;
+  compliance: Record<string, number>;
+  fidelity: { insurer: string; policyNo: string; limit: number; expiry: string };
+  classMapping: Record<string, string>;
+  glMapping: Record<string, string>;
+}
+export interface NaicomClass { code: string; name: string; category: string }
+export interface FsLine { code: string; name: string; statement: string; group: string }
+export interface SettingsResponse { settings: StatutorySettings; profile: BrokerInfo; naicomClasses: NaicomClass[]; fsLines: FsLine[] }
+export interface MappingsResponse {
+  classes: { name: string; policies: number; naicomClass: string; mapped: boolean }[];
+  accounts: { code: string; name: string; type: string; line: string | null; mapped: boolean }[];
+  naicomClasses: NaicomClass[];
+  fsLines: FsLine[];
+}
+export interface CorporateOfficer {
+  id: number;
+  name: string;
+  role: "director" | "shareholder" | "both" | "officer";
+  designation: string | null;
+  nationality: string | null;
+  shares_held: number;
+  pct_holding: number;
+  professional_qualification: string | null;
+  appointed_on: string | null;
+  ceased_on: string | null;
+  notes: string | null;
+}
+export interface AmlFiling {
+  id: number;
+  filing_type: "CTR" | "STR";
+  client_id: number | null;
+  client_name: string | null;
+  receipt_id: number | null;
+  reference_no: string;
+  transaction_date: string;
+  filed_date: string;
+  amount: number;
+  grounds: string | null;
+  created_by: string | null;
+}
+
+export type BankKind = "premium" | "claims" | "operating";
+export interface BankAccountOption { id: number; code: string; name: string; is_active: number; kind: BankKind; trust: boolean }
+export interface BankBalance {
+  id: number;
+  account_id: number;
+  account_code: string | null;
+  account_name: string | null;
+  kind: BankKind | null;
+  trust: boolean;
+  as_at: string;
+  statement_balance: number;
+  reference: string | null;
+  notes: string | null;
+  created_by: string | null;
 }

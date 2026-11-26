@@ -1,0 +1,15 @@
+/* Two-factor sign-in pieces (TwoFactor.tsx), on the sign-in screen and the Account page. Every rule is scoped to mfa-*. */
+.mfa-setup { display: grid; gap: 0.85rem; }
+.mfa-setup-card { max-width: 34rem; margin-bottom: 0.75rem; }
+.mfa-steps { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.35rem; line-height: 1.45; }
+.mfa-qr { display: flex; justify-content: center; }
+.mfa-setup-card .mfa-qr { justify-content: flex-start; }
+.mfa-qr img { width: 180px; height: 180px; padding: 8px; background: #fff; border: 1px solid var(--border, #d9dee5); border-radius: 10px; image-rendering: pixelated; }
+.mfa-key { margin: 0; font-size: 0.9rem; line-height: 1.5; }
+.mfa-key code { display: block; margin-top: 0.3rem; font-size: 0.95rem; letter-spacing: 0.04em; word-break: break-all; user-select: all; }
+.mfa-codes { display: grid; gap: 0.75rem; margin-bottom: 1rem; }
+.mfa-codes p { margin: 0; line-height: 1.5; }
+.mfa-code-list { list-style: none; margin: 0; padding: 0.75rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem 1rem; border: 1px dashed var(--border, #d9dee5); border-radius: 10px; }
+.mfa-code-list code { font-size: 1rem; letter-spacing: 0.06em; }
+.mfa-code-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.si-page .si-input.si-input-code input { padding: 0 1rem; letter-spacing: 0.18em; font-size: 1.15rem; }

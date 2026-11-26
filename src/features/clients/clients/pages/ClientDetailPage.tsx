@@ -4,6 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, apiUpload, ApiError, apiUrl, documentTooLarge } from "@/shared/api/client";
 import { fmtMoney, fmtMoneyShort } from "@/shared/lib/format";
 import { StatusBadge } from "@/shared/components/StatusBadge";
+import { SanctionsBadge } from "@/features/compliance/sanctions/components/SanctionsBadge";
+import { ClientConsentPanel } from "@/features/compliance/privacy/components/ClientConsentPanel";
 import { RoleGate } from "@/app/guards/RoleGate";
 import { confirmAction } from "@/shared/components/ConfirmDialog";
 import { MetricStrip, type Metric } from "@/shared/components/exec/MetricStrip";
@@ -48,6 +50,13 @@ interface CoverageGap {
   priority: string;
 }
 
+interface PortalUser {
+  id: number;
+  name: string;
+  email: string;
+  last_login_at: string | null;
+}
+
 interface Client {
   id: number;
   name: string;
@@ -81,6 +90,7 @@ interface ClientDetailResponse {
   documents: DocumentRow[];
   deals: DealRow[];
   coverageGaps: CoverageGap[];
+  portalUsers: PortalUser[];
   nQuoteRequests: number;
   nMessages: number;
   accountManager: { id: number; username: string } | null;
@@ -104,6 +114,8 @@ export function ClientDetailPage() {
   const [docFile, setDocFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [portalForm, setPortalForm] = useState({ name: "", email: "" });
+  const [portalNotice, setPortalNotice] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["clients", clientId],
@@ -132,7 +144,7 @@ export function ClientDetailPage() {
 
   if (isLoading) return <p>Loading…</p>;
   if (!data) return <p>Client not found.</p>;
-  const { client, transactions, parent, subsidiaries, contacts, documents, deals, coverageGaps, nMessages, accountManager, branch } = data;
+  const { client, transactions, parent, subsidiaries, contacts, documents, deals, coverageGaps, portalUsers, nQuoteRequests, nMessages, accountManager, branch } = data;
 
   async function handleAddContact(e: FormEvent) {
     e.preventDefault();
@@ -194,6 +206,38 @@ export function ClientDetailPage() {
     await refresh();
   }
 
+  async function handleCreatePortalAccess(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      const result = await api.post<{ tempPassword: string }>(`/api/clients/${clientId}/portal-access`, portalForm);
+      setPortalNotice(
+        `Portal access created for ${portalForm.name} (${portalForm.email}). Temporary password: ${result.tempPassword} — share this with the customer; they'll be asked to change it on first login.`
+      );
+      setPortalForm({ name: "", email: "" });
+      await refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleResetPortalAccess(cuId: number) {
+    if (!confirmAction("Reset this customer's password?")) return;
+    const result = await api.post<{ tempPassword: string; email: string }>(
+      `/api/clients/${clientId}/portal-access/${cuId}/reset`
+    );
+    setPortalNotice(`Password reset for ${result.email}. Temporary password: ${result.tempPassword}`);
+  }
+
+  async function handleDeletePortalAccess(cuId: number) {
+    if (!confirmAction("Remove portal access for this customer?")) return;
+    await api.delete(`/api/clients/${clientId}/portal-access/${cuId}`);
+    await refresh();
+  }
+
   const CLOSED_CLAIMS = ["Settled", "Closed", "Repudiated", "Rejected", "Declined"];
   const claims = claimsQuery.data?.claims ?? [];
   const openClaims = claims.filter((c) => !CLOSED_CLAIMS.includes(c.status)).length;
@@ -204,6 +248,7 @@ export function ClientDetailPage() {
     { id: "overview", label: "Overview", count: transactions.length },
     { id: "people", label: "Contacts & documents", count: contacts.length + documents.length },
     { id: "messages", label: "Messages", count: nMessages },
+    { id: "portal", label: "Customer portal", count: portalUsers.length },
   ];
   const tab = tabs.some((x) => x.id === searchParams.get("tab")) ? (searchParams.get("tab") as string) : "overview";
   function setTab(id: string) {
@@ -233,6 +278,7 @@ export function ClientDetailPage() {
         <div className="exec-meta">
           <span>{[client.city, client.state].filter(Boolean).join(", ") || "No location"}</span>
           <span>{accountManager?.username ? `Manager: ${accountManager.username}` : "No account manager"}</span>
+          <SanctionsBadge type="client" id={Number(clientId)} />
         </div>
         <div className="exec-header-actions">
           <Link className="btn-secondary btn btn-sm" to={`/reports/loss-experience?client_id=${clientId}`}>
@@ -456,6 +502,7 @@ export function ClientDetailPage() {
 
       {tab === "people" && (
       <div role="tabpanel" id="client-panel-people" aria-labelledby="client-tab-people" tabIndex={0} className="exec-tabpanel">
+        <ClientConsentPanel clientId={Number(clientId)} />
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Contacts</h3>
         {contacts.length > 0 && (
@@ -602,6 +649,89 @@ export function ClientDetailPage() {
       </div>
       )}
 
+      {tab === "portal" && (
+      <div role="tabpanel" id="client-panel-portal" aria-labelledby="client-tab-portal" tabIndex={0} className="exec-tabpanel">
+      <div className="card">
+        <div className="page-header" style={{ marginBottom: "0.75rem" }}>
+          <h2 style={{ margin: 0 }}>Customer Portal</h2>
+          <div className="actions-row">
+            <Link className="btn-secondary btn-sm" to={`/claims?client_id=${clientId}`}>
+              Claims ({claimsQuery.data?.claims.length ?? 0})
+            </Link>
+            <Link className="btn-secondary btn-sm" to="/quote-requests">Quote Requests ({nQuoteRequests})</Link>
+            <Link className="btn-secondary btn-sm" to="?tab=messages">Messages ({nMessages})</Link>
+          </div>
+        </div>
+
+        <h3 style={{ marginTop: "1rem" }}>Portal Access</h3>
+        {portalNotice && <div className="flash flash-success">{portalNotice}</div>}
+        {portalUsers.length > 0 ? (
+          <div className="exec-table-wrap">
+            <table className="exec-table is-static">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Last Login</th>
+                  <RoleGate need="write"><th></th></RoleGate>
+                </tr>
+              </thead>
+              <tbody>
+                {portalUsers.map((pu) => (
+                  <tr key={pu.id}>
+                    <td>{pu.name}</td>
+                    <td>{pu.email}</td>
+                    <td>{pu.last_login_at ? pu.last_login_at.slice(0, 10) : "Never"}</td>
+                    <RoleGate need="write">
+                      <td className="actions-row">
+                        <button type="button" className="btn-secondary btn-sm" onClick={() => handleResetPortalAccess(pu.id)}>
+                          Reset password
+                        </button>
+                        <button type="button" className="btn-danger btn-sm" onClick={() => handleDeletePortalAccess(pu.id)}>
+                          Remove
+                        </button>
+                      </td>
+                    </RoleGate>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="empty-state">This client has no portal login yet.</p>
+        )}
+        <RoleGate need="write">
+          {error && <div className="flash flash-error">{error}</div>}
+          <form onSubmit={handleCreatePortalAccess} style={{ marginTop: "1rem" }}>
+            <div className="form-grid">
+              <div className="field">
+                <label htmlFor="portal_name">Contact name</label>
+                <input
+                  id="portal_name"
+                  required
+                  value={portalForm.name}
+                  onChange={(e) => setPortalForm({ ...portalForm, name: e.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="portal_email">Email</label>
+                <input
+                  id="portal_email"
+                  type="email"
+                  required
+                  value={portalForm.email}
+                  onChange={(e) => setPortalForm({ ...portalForm, email: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="form-actions">
+              <button type="submit" className="btn" disabled={busy}>Create portal access</button>
+            </div>
+          </form>
+        </RoleGate>
+      </div>
+      </div>
+      )}
       </section>
     </div>
   );

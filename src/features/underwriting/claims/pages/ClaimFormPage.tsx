@@ -38,6 +38,7 @@ interface Claim {
   adjuster_name: string | null;
   adjuster_phone: string | null;
   adjuster_email: string | null;
+  adjuster_id: number | null;
   handler_user_id: number | null;
 }
 
@@ -71,6 +72,12 @@ export function ClaimFormPage() {
   const [adjusterName, setAdjusterName] = useState("");
   const [adjusterPhone, setAdjusterPhone] = useState("");
   const [adjusterEmail, setAdjusterEmail] = useState("");
+  // From the adjuster and surveyor register; blank means type the details by hand.
+  const [adjusterId, setAdjusterId] = useState("");
+  const adjustersQuery = useQuery({
+    queryKey: ["loss-adjusters"],
+    queryFn: () => api.get<{ adjusters: { id: number; name: string; firm: string | null; kind: string; phone: string | null; email: string | null }[] }>("/api/loss-adjusters"),
+  });
   // Blank on a new claim means "me" (the backend defaults to the creator).
   const [handlerUserId, setHandlerUserId] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -112,6 +119,7 @@ export function ClaimFormPage() {
       setAdjusterName(c.adjuster_name || "");
       setAdjusterPhone(c.adjuster_phone || "");
       setAdjusterEmail(c.adjuster_email || "");
+      setAdjusterId(c.adjuster_id ? String(c.adjuster_id) : "");
       setHandlerUserId(c.handler_user_id ? String(c.handler_user_id) : "");
     }
   }, [isEdit, editQuery.data]);
@@ -149,6 +157,7 @@ export function ClaimFormPage() {
       adjuster_name: adjusterName,
       adjuster_phone: adjusterPhone,
       adjuster_email: adjusterEmail,
+      adjuster_id: adjusterId ? Number(adjusterId) : null,
       handler_user_id: handlerUserId || null,
     };
     try {
@@ -335,6 +344,16 @@ export function ClaimFormPage() {
 
           <div className="section-title">Adjuster</div>
           <div className="form-grid">
+            <div className="field" style={{ gridColumn: "1 / -1" }}>
+              <label htmlFor="adjuster_id">From the register</label>
+              <select id="adjuster_id" value={adjusterId} onChange={(e) => setAdjusterId(e.target.value)}>
+                <option value="">Not on the register (type the details below)</option>
+                {(adjustersQuery.data?.adjusters ?? []).map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}{a.firm ? ` (${a.firm})` : ""} · {a.kind}</option>
+                ))}
+              </select>
+            </div>
+            {!adjusterId && <>
             <div className="field">
               <label htmlFor="adjuster_name">Adjuster Name</label>
               <input id="adjuster_name" value={adjusterName} onChange={(e) => setAdjusterName(e.target.value)} />
@@ -347,6 +366,7 @@ export function ClaimFormPage() {
               <label htmlFor="adjuster_email">Adjuster Email</label>
               <input id="adjuster_email" type="email" value={adjusterEmail} onChange={(e) => setAdjusterEmail(e.target.value)} />
             </div>
+            </>}
           </div>
 
           {isEdit && (

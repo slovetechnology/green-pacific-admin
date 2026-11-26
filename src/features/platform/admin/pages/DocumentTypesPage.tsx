@@ -19,7 +19,7 @@ interface DocTypeRow {
 type Area = "claim" | "client" | "deal";
 
 const AREAS: { key: Area; label: string; where: string; back: { to: string; label: string } }[] = [
-  { key: "claim", label: "Claims", where: "a file is uploaded to a claim, on the claim page", back: { to: "/claims", label: "Claims" } },
+  { key: "claim", label: "Claims", where: "a file is uploaded to a claim, on the claim page and in the customer portal", back: { to: "/claims", label: "Claims" } },
   { key: "client", label: "Clients", where: "a file is uploaded on a client's Documents tab", back: { to: "/clients", label: "Clients" } },
   { key: "deal", label: "Deals", where: "a file is uploaded on a deal's Documents tab", back: { to: "/deals", label: "Deals" } },
 ];

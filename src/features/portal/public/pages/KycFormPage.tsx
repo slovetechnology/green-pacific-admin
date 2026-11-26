@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { api, apiUpload, ApiError } from "@/shared/api/client";
 
@@ -103,9 +103,6 @@ function useSignaturePad() {
   return { canvasRef, clear, dataUrl };
 }
 
-// Staff capture a client's KYC here (Clients > a client > "Start KYC" opens it with ?client_id=). It sits in
-// the staff app and needs a staff session; the public intake version of this form is parked with the rest of
-// the customer area in customer-portal/frontend.
 export function KycFormPage() {
   const [searchParams] = useSearchParams();
   const [customerType, setCustomerType] = useState<"individual" | "corporate">("individual");
@@ -178,11 +175,11 @@ export function KycFormPage() {
       <div className="container kyc-container kyc-container-complete">
         <div className="card kyc-complete">
           <img src="/logo.png" alt="Green Pacific Insurance Brokers Ltd" className="kyc-logo kyc-logo-complete" />
-          <h1>KYC submission saved</h1>
+          <h1>Thank you</h1>
           <p className="page-lede">
-            The reference number is <strong>{referenceNo}</strong>.
+            Your KYC submission has been received. Your reference number is <strong>{referenceNo}</strong>.
           </p>
-          <p>It is now in <Link to="/kyc-submissions">KYC Submissions</Link>, waiting for compliance review.</p>
+          <p>Please keep this reference number for your records. Our compliance team will review your submission shortly.</p>
         </div>
       </div>
       </>

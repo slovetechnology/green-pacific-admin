@@ -17,8 +17,12 @@ interface TransactionRow {
   insurer_name: string;
   policy_no: string | null;
   premium_due: number;
+  // The insurer's share of the risk (below 1 when co-insured).
+  proportion?: number | null;
   balance_os: number;
   status: string | null;
+  // Set on a cancelled row: why it was cancelled.
+  cancellation_reason?: string;
 }
 
 interface TransactionsListResponse {
@@ -53,6 +57,7 @@ interface TransactionPreview {
     status: string | null;
   };
   complianceExceptions: { id: number; rule_name: string; severity: string; status: string }[];
+  cancellation?: { reason: string; date: string | null; by: string | null } | null;
 }
 
 function TransactionDrawerBody({ txId }: { txId: number }) {
@@ -76,6 +81,15 @@ function TransactionDrawerBody({ txId }: { txId: number }) {
         <div className="exec-field"><dt>Billing</dt><dd>{t.billing_mode || "Agency"}</dd></div>
         <div className="exec-field"><dt>Period</dt><dd>{t.start_date || "—"} → {t.end_date || "—"}</dd></div>
         <div className="exec-field"><dt>Status</dt><dd><StatusBadge status={t.status} /></dd></div>
+        {data.cancellation && (
+          <div className="exec-field">
+            <dt>Cancellation reason</dt>
+            <dd>
+              {data.cancellation.reason}
+              {data.cancellation.date ? ` (${data.cancellation.date.slice(0, 10)}${data.cancellation.by ? `, ${data.cancellation.by}` : ""})` : ""}
+            </dd>
+          </div>
+        )}
       </dl>
 
       <section>
@@ -141,7 +155,16 @@ export function TransactionsListPage() {
   const columns: DataGridColumn<TransactionRow>[] = [
     { key: "date", header: "Date", render: (t) => <Link to={`/transactions/${t.id}`}>{t.trans_date || "—"}</Link> },
     { key: "client", header: "Client", render: (t) => t.client_name },
-    { key: "insurer", header: "Insurer", render: (t) => t.insurer_name },
+    {
+      key: "insurer",
+      header: "Insurer",
+      render: (t) => (
+        <>
+          {t.insurer_name}
+          {t.proportion != null && t.proportion < 1 && <small title="Co-insured: this row is this insurer's share"> ({Number((t.proportion * 100).toFixed(4))}% share)</small>}
+        </>
+      ),
+    },
     { key: "policy_no", header: "Policy No", render: (t) => <span className="nowrap">{t.policy_no || "—"}</span> },
     { key: "premium_due", header: "Premium Due", align: "right", render: (t) => fmtMoney(t.premium_due) },
     {
@@ -150,7 +173,20 @@ export function TransactionsListPage() {
       align: "right",
       render: (t) => <span className={t.balance_os > 0 ? "is-crit" : undefined}>{fmtMoney(t.balance_os)}</span>,
     },
-    { key: "status", header: "Status", render: (t) => <StatusBadge status={t.status} /> },
+    {
+      key: "status",
+      header: "Status",
+      render: (t) => (
+        <>
+          <StatusBadge status={t.status} />
+          {t.cancellation_reason && (
+            <div className="cancel-reason" title={t.cancellation_reason}>
+              {t.cancellation_reason}
+            </div>
+          )}
+        </>
+      ),
+    },
     {
       key: "preview",
       header: <span className="sr-only">Preview</span>,
@@ -214,12 +250,13 @@ export function TransactionsListPage() {
       >
         <label className="exec-search">
           <span>Search</span>
-          <input type="search" placeholder="Client, policy, insurer…" value={qInput} onChange={(e) => setQInput(e.target.value)} />
+          <input type="search" placeholder="Client, policy, insurer, cancellation reason…" value={qInput} onChange={(e) => setQInput(e.target.value)} />
         </label>
         <label className="exec-filter">
           <span>Status</span>
           <select value={status} onChange={(e) => updateParams({ status: e.target.value })}>
             <option value="">All</option>
+            <option value="not_cancelled">All except cancelled</option>
             {(data?.statuses || []).map((s) => (
               <option key={s} value={s}>
                 {s}
@@ -240,6 +277,15 @@ export function TransactionsListPage() {
         </label>
         <button type="submit" className="btn btn-secondary btn-sm">
           Search
+        </button>
+        <button
+          type="button"
+          className={`btn btn-sm ${status === "Cancelled" ? "" : "btn-secondary"}`}
+          aria-pressed={status === "Cancelled"}
+          onClick={() => updateParams({ status: status === "Cancelled" ? "" : "Cancelled" })}
+          title="Show only cancelled transactions, with why each was cancelled"
+        >
+          Cancelled
         </button>
         {activeFilters > 0 && (
           <button
