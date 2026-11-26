@@ -161,6 +161,7 @@ export default [
     route("portal/payments/:id", "routes/clients/portal.payments.$id.tsx"),
     route("portal/payment-methods", "routes/clients/portal.payment-methods.tsx"),
     route("portal/pricing-markup", "routes/clients/portal.pricing-markup.tsx"),
+    route("portal/billing-currencies", "routes/clients/portal.billing-currencies.tsx"),
     route("portal/insurer-products", "routes/clients/portal.insurer-products.tsx"),
     route("portal/cancellations", "routes/clients/portal.cancellations.tsx"),
     route("portal/cancellations/:id", "routes/clients/portal.cancellations.$id.tsx"),

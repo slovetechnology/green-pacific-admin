@@ -8,7 +8,7 @@ import { ListSearch } from "@/shared/components/ListSearch";
 import { useRowSearch } from "@/shared/hooks/useRowSearch";
 import { fmtMoney, fmtMoneyShort } from "@/shared/lib/format";
 import "@/shared/styles/executive.css";
-import { PAYMENT_STATUS_LABELS, dateTime, shortDate, type PaymentStatus, type PortalPayment } from "../api";
+import { PAYMENT_STATUS_LABELS, dateTime, fmtCurrency, shortDate, type PaymentStatus, type PortalPayment } from "../api";
 
 const STATUSES: PaymentStatus[] = ["pending", "initiated", "approved", "rejected", "cancelled"];
 
@@ -33,14 +33,15 @@ export function PortalPaymentsPage() {
     { key: "reference", header: "Reference", render: (p) => <Link to={`/portal/payments/${p.id}`}>{p.reference}</Link> },
     { key: "customer", header: "Customer", render: (p) => <>{p.customer?.name ?? "—"}<div className="muted small">{p.customer?.email}</div></> },
     { key: "request", header: "For", render: (p) => <Link to={`/portal/quote-requests/${p.quote_request.id}`}>{p.quote_request.reference ?? `#${p.quote_request.id}`}<div className="muted small">{p.quote_request.product_name}</div></Link> },
-    { key: "amount", header: "Amount", align: "right", render: (p) => fmtMoney(p.amount) },
+    { key: "amount", header: "Amount", align: "right", render: (p) => fmtCurrency(p.amount, p.currency) },
     { key: "method", header: "Method", render: (p) => p.method.name },
     { key: "payer", header: "Bank reference", render: (p) => p.payer_reference ?? "—" },
     { key: "proof", header: "Proof", render: (p) => (p.proof ? dateTime(p.proof.uploaded_at) : "—") },
     { key: "status", header: "Status", render: (p) => <StatusBadge status={PAYMENT_STATUS_LABELS[p.status] ?? p.status} /> },
   ];
 
-  const total = rows.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  // In naira: a payment in another currency counts at the naira price it settles.
+  const total = rows.reduce((sum, p) => sum + (Number(p.currency === "NGN" ? p.amount : p.ngn_amount) || 0), 0);
   const metrics: Metric[] = [
     { key: "count", label: status ? PAYMENT_STATUS_LABELS[status as PaymentStatus] ?? status : "All payments", value: rows.length, tone: status === "pending" && rows.length ? "warn" : "neutral" },
     { key: "amount", label: "Amount", value: fmtMoneyShort(total), title: fmtMoney(total) },

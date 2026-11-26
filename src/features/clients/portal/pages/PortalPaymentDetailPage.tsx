@@ -6,7 +6,7 @@ import { StatusBadge } from "@/shared/components/StatusBadge";
 import { Modal } from "@/shared/components/exec/Modal";
 import { RoleGate } from "@/app/guards/RoleGate";
 import { fmtMoney } from "@/shared/lib/format";
-import { PAYMENT_STATUS_LABELS, POLICY_STATUS_LABELS, dateTime, type PortalPaymentDetail } from "../api";
+import { PAYMENT_STATUS_LABELS, POLICY_STATUS_LABELS, dateTime, fmtCurrency, type PortalPaymentDetail } from "../api";
 
 function Field({ label, value }: { label: string; value: ReactNode }) {
   return (
@@ -71,13 +71,17 @@ export function PortalPaymentDetailPage() {
   const p = data?.data;
   if (!p) return <p>Payment not found.</p>;
   const reviewable = p.status === "pending" || p.status === "initiated";
+  // The amount collected is in the account's currency; the ERP and the insurer only ever see the naira figures.
+  const paid = fmtCurrency(p.amount, p.currency);
+  const foreign = p.currency !== "NGN";
+  const billing = p.quote?.billing;
 
   return (
     <div>
       <div className="page-header">
         <div>
           <p className="eyebrow"><Link to="/portal/payments">Portal Payments</Link> · {p.reference}</p>
-          <h1>{fmtMoney(p.amount)} from {p.customer?.name ?? "a customer"}</h1>
+          <h1>{paid} from {p.customer?.name ?? "a customer"}</h1>
           <p className="page-lede">For <Link to={`/portal/quote-requests/${p.quote_request.id}`}>{p.quote_request.reference ?? `request #${p.quote_request.id}`}</Link> · {p.quote_request.product_name}</p>
         </div>
         <div className="page-header-actions">
@@ -92,8 +96,15 @@ export function PortalPaymentDetailPage() {
       <div className="card">
         <h2>Payment</h2>
         <div className="detail-grid">
-          <Field label="Amount" value={fmtMoney(p.amount)} />
-          <Field label="Quoted premium" value={p.quote?.premium ? fmtMoney(p.quote.premium) : null} />
+          <Field label="Amount" value={paid} />
+          {foreign && <Field label="Naira price it settles" value={p.ngn_amount ? fmtMoney(p.ngn_amount) : null} />}
+          <Field label="Quoted premium" value={p.quote?.premium ? fmtCurrency(p.quote.premium, p.quote.currency) : null} />
+          {billing && billing.currency !== (p.quote?.currency ?? "NGN") && (
+            <Field
+              label={`Billed in ${billing.currency}`}
+              value={`${fmtCurrency(billing.amount, billing.currency)}${billing.rate ? ` at ${fmtMoney(billing.rate)}/${billing.currency} (${billing.rate_date})` : ""}`}
+            />
+          )}
           {p.quote?.markup_amount ? (
             <>
               <Field label="Goes to the insurer" value={fmtMoney(p.quote.insurer_premium ?? 0)} />
@@ -101,7 +112,10 @@ export function PortalPaymentDetailPage() {
             </>
           ) : null}
           <Field label="Method" value={p.method.name} />
-          <Field label="Paid into" value={p.pay_to ? `${p.pay_to.bank_name ?? ""} ${p.pay_to.account_number ?? ""} (${p.pay_to.account_name ?? ""})` : null} />
+          <Field
+            label="Paid into"
+            value={p.pay_to ? `${p.pay_to.bank_name ?? ""} ${p.pay_to.account_number ?? ""} (${p.pay_to.account_name ?? ""})${p.pay_to.swift_code ? ` · SWIFT ${p.pay_to.swift_code}` : ""}${foreign ? ` · ${p.currency} account` : ""}` : null}
+          />
           <Field label="Narration to look for" value={p.reference} />
           <Field label="Payer" value={p.payer_name} />
           <Field label="Bank reference" value={p.payer_reference} />
@@ -146,17 +160,17 @@ export function PortalPaymentDetailPage() {
         </>}
       >
         <div className="confirm-summary">
-          <div><div className="k">Amount</div><div className="v is-amount">{fmtMoney(p.amount)}</div></div>
+          <div><div className="k">Amount</div><div className="v is-amount">{paid}</div></div>
           <div><div className="k">Narration</div><div className="v">{p.reference}</div></div>
           <div><div className="k">Customer</div><div className="v">{p.customer?.name ?? "—"}</div></div>
           <div><div className="k">Product</div><div className="v">{p.quote_request.product_name ?? "—"}</div></div>
         </div>
         {confirming === "approve" ? (
           <>
-            <p className="confirm-note">Only approve when <strong>{fmtMoney(p.amount)}</strong> with narration <strong>{p.reference}</strong> is on the bank statement. This can't be undone.</p>
+            <p className="confirm-note">Only approve when <strong>{paid}</strong> with narration <strong>{p.reference}</strong> is on the bank statement. This can't be undone.</p>
             <p className="confirm-lede">Approving will:</p>
             <ul className="confirm-steps">
-              <li>record the receipt in the ERP{p.quote?.markup_amount ? <>: {fmtMoney(p.quote.insurer_premium ?? 0)} to the policy (owed to the insurer) and {fmtMoney(p.quote.markup_amount)} markup as Green Pacific&apos;s income</> : null}</li>
+              <li>record the receipt in the ERP{foreign && p.ngn_amount ? <> in naira ({fmtMoney(p.ngn_amount)}, the quote&apos;s naira price)</> : null}{p.quote?.markup_amount ? <>: {fmtMoney(p.quote.insurer_premium ?? 0)} to the policy (owed to the insurer) and {fmtMoney(p.quote.markup_amount)} markup as Green Pacific&apos;s income</> : null}</li>
               <li>ask the insurer to issue the policy</li>
               <li>email the customer their payment receipt</li>
             </ul>

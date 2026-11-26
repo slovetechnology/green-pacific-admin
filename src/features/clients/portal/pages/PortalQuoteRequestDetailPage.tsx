@@ -188,6 +188,12 @@ export function PortalQuoteRequestDetailPage() {
           <div className="detail-grid">
             <Field label="Status" value={<StatusBadge status={QUOTE_STATUS_LABELS[r.quote.status] ?? r.quote.status} />} />
             <Field label="Customer pays" value={r.quote.premium ? fmtMoney(r.quote.premium) : null} />
+            {r.quote.billing && r.quote.billing.currency !== r.quote.currency ? (
+              <Field
+                label={`Billed in ${r.quote.billing.currency}`}
+                value={`${r.quote.billing.currency} ${Number(r.quote.billing.amount ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${r.quote.billing.rate ? ` at ${fmtMoney(r.quote.billing.rate)}/${r.quote.billing.currency} on ${r.quote.billing.rate_date}` : ""}`}
+              />
+            ) : null}
             {r.quote.premium ? <Field label="Insurer's premium" value={r.quote.insurer_premium != null ? fmtMoney(r.quote.insurer_premium) : null} /> : null}
             {r.quote.premium ? <Field label="Our markup" value={r.quote.markup_amount ? `${fmtMoney(r.quote.markup_amount)}${r.quote.markup_rule ? ` (${r.quote.markup_rule})` : ""}` : "None"} /> : null}
             <Field label="Insurer quote no." value={r.quote.insurer_quote_no} />

@@ -27,6 +27,15 @@ export interface PortalQuote {
   insurer_premium?: number | null;
   markup_amount?: number | null;
   markup_rule?: string | null;
+  /** The customer's price in their billing currency (converted from the naira premium when quoted), and the rate used. */
+  billing?: BillingPrice | null;
+}
+
+export interface BillingPrice {
+  currency: string;
+  amount: number | null;
+  rate: number | null;
+  rate_date: string | null;
 }
 
 export interface PortalPolicy {
@@ -132,7 +141,12 @@ export interface PortalPayment {
   amount: number;
   currency: string;
   method: { code: string; name: string; kind: string | null };
-  pay_to: { bank_name: string | null; account_name: string | null; account_number: string | null; narration: string } | null;
+  pay_to: {
+    bank_name: string | null; account_name: string | null; account_number: string | null; narration: string; currency?: string;
+    swift_code?: string; iban?: string; sort_code?: string; bank_address?: string;
+  } | null;
+  /** The naira price this payment settles (the quote's premium), whatever currency it was paid in. */
+  ngn_amount?: number | null;
   quote_request: { id: number; reference: string | null; product_name: string | null; product_source?: string };
   proof: { name: string; size: number; type: string | null; uploaded_at: string } | null;
   payer_name: string | null;
@@ -148,7 +162,10 @@ export interface PortalPayment {
 }
 
 export interface PortalPaymentDetail extends PortalPayment {
-  quote: { premium: number | null; insurer_quote_no: string | null; quote_source: string | null; insurer_premium?: number | null; markup_amount?: number | null; markup_rule?: string | null } | null;
+  quote: {
+    premium: number | null; insurer_quote_no: string | null; quote_source: string | null; insurer_premium?: number | null; markup_amount?: number | null; markup_rule?: string | null;
+    currency?: string; billing?: BillingPrice;
+  } | null;
   policy_detail: { status: string | null; policy_no: string | null; error: string | null; transaction_id: number | null; receipt_id: number | null } | null;
   other_attempts: { id: number; reference: string; status: PaymentStatus; created_at: string; reviewed_at: string | null; rejection_reason: string | null }[];
 }
@@ -158,11 +175,31 @@ export interface PaymentMethod {
   code: string;
   name: string;
   kind: "bank_transfer" | "gateway";
+  /** The currency the account takes payment in. */
+  currency: string;
   enabled: boolean;
   instructions: string | null;
-  details: { bank_name?: string; account_name?: string; account_number?: string };
+  details: { bank_name?: string; account_name?: string; account_number?: string; swift_code?: string; iban?: string; sort_code?: string; bank_address?: string };
   updated_by: string | null;
   updated_at: string | null;
+}
+
+/** A currency in the firm's currency table, as Customer Portal > Billing Currencies shows it. */
+export interface CurrencyRow {
+  code: string;
+  name: string;
+  decimals: number;
+  active: boolean;
+  billing: boolean;
+  base: boolean;
+  rate: { rate: number; rate_micro: number; rate_date: string; stale: boolean } | null;
+}
+
+/** "₦1,500.00", "USD 110.00": an amount in its currency. */
+export function fmtCurrency(value: unknown, currency: string | null | undefined = "NGN"): string {
+  const n = Number(value);
+  const amount = (Number.isFinite(n) ? n : 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return !currency || currency === "NGN" ? `₦${amount}` : `${currency} ${amount}`;
 }
 
 export const QUOTE_STATUS_LABELS: Record<string, string> = {

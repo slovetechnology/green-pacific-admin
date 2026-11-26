@@ -4,7 +4,7 @@ import { api, ApiError } from "@/shared/api/client";
 import { useAuth } from "@/features/platform/auth/AuthContext";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { confirmDialog } from "@/shared/components/Dialogs";
-import { dateTime, type PaymentMethod } from "../api";
+import { dateTime, type CurrencyRow, type PaymentMethod } from "../api";
 
 const DEFAULT_INSTRUCTIONS =
   "Transfer the exact amount to the account below, using the payment reference as the narration, then upload your payment receipt or a screenshot.";
@@ -13,6 +13,10 @@ const errorText = (err: unknown) => (err instanceof ApiError ? err.message : "So
 // How customers can pay in the portal: one or more bank accounts (each its own method, shown to customers in the
 // order here), and later online gateways (Paystack...) once their integration exists. Everyone on staff can see the
 // methods; only admins add, change, order or delete them.
+//
+// Each account has a currency (one of the billing currencies) and takes payment in it. Customers billed in naira see
+// only naira accounts; customers billed in another currency see accounts in that currency and naira accounts. A
+// naira account is a Nigerian account (NUBAN); a foreign-currency account has its international details.
 
 /** One method's form. With no `method` it adds a new bank account. */
 function MethodCard({
@@ -25,9 +29,12 @@ function MethodCard({
   onCancel,
   moving = false,
   lastOffered = false,
+  currencies,
 }: {
   method?: PaymentMethod;
   canEdit: boolean;
+  /** The billing currencies an account can take payment in (NGN first). */
+  currencies: string[];
   /** Another card is being moved: moving this one too would race it. */
   moving?: boolean;
   /** The only method customers can pay with: deleting it leaves them no way to pay. */
@@ -46,8 +53,16 @@ function MethodCard({
     bank_name: method?.details.bank_name ?? "",
     account_name: method?.details.account_name ?? "",
     account_number: method?.details.account_number ?? "",
+    currency: method?.currency ?? "NGN",
+    swift_code: method?.details.swift_code ?? "",
+    iban: method?.details.iban ?? "",
+    sort_code: method?.details.sort_code ?? "",
+    bank_address: method?.details.bank_address ?? "",
     enabled: method?.enabled ?? true,
   });
+  const foreign = form.currency !== "NGN";
+  // The account's own currency stays selectable even if it is no longer a billing currency.
+  const currencyOptions = [...new Set([...currencies, form.currency])];
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -60,8 +75,13 @@ function MethodCard({
     setSaved(false);
     setBusy(true);
     const body = {
-      name: form.name, instructions: form.instructions, enabled: form.enabled,
-      ...(bank ? { details: { bank_name: form.bank_name, account_name: form.account_name, account_number: form.account_number } } : {}),
+      name: form.name, instructions: form.instructions, enabled: form.enabled, currency: form.currency,
+      ...(bank ? {
+        details: {
+          bank_name: form.bank_name, account_name: form.account_name, account_number: form.account_number,
+          ...(foreign ? { swift_code: form.swift_code, iban: form.iban, sort_code: form.sort_code, bank_address: form.bank_address } : {}),
+        },
+      } : {}),
     };
     try {
       if (creating) {
@@ -121,6 +141,7 @@ function MethodCard({
           {position && position.count > 1 && <p className="page-lede" style={{ margin: 0 }}>Shown to customers {ordinal(position.index + 1)} of {position.count}</p>}
         </div>
         <div className="page-header-actions">
+          {!creating && <span className="badge-secondary">{method.currency}</span>}
           {!creating && <StatusBadge status={method.enabled ? "Offered" : "Off"} />}
           {canEdit && !creating && position && position.count > 1 && (
             <>
@@ -151,11 +172,17 @@ function MethodCard({
                 id={`${key}_name`}
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder={creating ? `Bank transfer${form.bank_name ? ` (${form.bank_name})` : ""}` : undefined}
+                placeholder={creating ? `Bank transfer${form.bank_name || foreign ? ` (${[form.bank_name, foreign ? form.currency : ""].filter(Boolean).join(", ")})` : ""}` : undefined}
               />
             </div>
             {bank && (
               <>
+                <div className="field">
+                  <label htmlFor={`${key}_ccy`}>Currency</label>
+                  <select id={`${key}_ccy`} value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
+                    {currencyOptions.map((c) => <option key={c} value={c}>{c === "NGN" ? "NGN (Nigerian account)" : c}</option>)}
+                  </select>
+                </div>
                 <div className="field">
                   <label htmlFor={`${key}_bank`}>Bank</label>
                   <input id={`${key}_bank`} value={form.bank_name} onChange={(e) => setForm({ ...form, bank_name: e.target.value })} placeholder="e.g. Zenith Bank" />
@@ -165,9 +192,35 @@ function MethodCard({
                   <input id={`${key}_acname`} value={form.account_name} onChange={(e) => setForm({ ...form, account_name: e.target.value })} />
                 </div>
                 <div className="field">
-                  <label htmlFor={`${key}_acno`}>Account number (NUBAN)</label>
-                  <input id={`${key}_acno`} inputMode="numeric" maxLength={10} value={form.account_number} onChange={(e) => setForm({ ...form, account_number: e.target.value })} />
+                  <label htmlFor={`${key}_acno`}>{foreign ? "Account number" : "Account number (NUBAN)"}</label>
+                  <input
+                    id={`${key}_acno`}
+                    inputMode={foreign ? "text" : "numeric"}
+                    maxLength={foreign ? 34 : 10}
+                    value={form.account_number}
+                    onChange={(e) => setForm({ ...form, account_number: e.target.value })}
+                  />
                 </div>
+                {foreign && (
+                  <>
+                    <div className="field">
+                      <label htmlFor={`${key}_swift`}>SWIFT / BIC</label>
+                      <input id={`${key}_swift`} maxLength={11} value={form.swift_code} onChange={(e) => setForm({ ...form, swift_code: e.target.value })} placeholder="e.g. ZEIBNGLA" />
+                    </div>
+                    <div className="field">
+                      <label htmlFor={`${key}_iban`}>IBAN (optional)</label>
+                      <input id={`${key}_iban`} maxLength={34} value={form.iban} onChange={(e) => setForm({ ...form, iban: e.target.value })} />
+                    </div>
+                    <div className="field">
+                      <label htmlFor={`${key}_sort`}>Sort code / routing number (optional)</label>
+                      <input id={`${key}_sort`} maxLength={34} value={form.sort_code} onChange={(e) => setForm({ ...form, sort_code: e.target.value })} />
+                    </div>
+                    <div className="field span-2">
+                      <label htmlFor={`${key}_addr`}>Bank address (optional)</label>
+                      <input id={`${key}_addr`} maxLength={500} value={form.bank_address} onChange={(e) => setForm({ ...form, bank_address: e.target.value })} />
+                    </div>
+                  </>
+                )}
               </>
             )}
             <div className="field span-2">
@@ -204,6 +257,9 @@ export function PaymentMethodsPage() {
   const canEdit = !!user?.isAdmin;
   const queryClient = useQueryClient();
   const { data, isLoading, isError } = useQuery({ queryKey: ["payment-methods"], queryFn: () => api.get<{ data: PaymentMethod[] }>("/api/payment-methods") });
+  const { data: currencyData } = useQuery({ queryKey: ["billing-currencies"], queryFn: () => api.get<{ data: CurrencyRow[] }>("/api/customer-portal-billing-currencies") });
+  const currencies = (currencyData?.data ?? []).filter((c) => c.billing && c.active).map((c) => c.code);
+  const billingCurrencies = currencies.length ? currencies : ["NGN"];
   const [adding, setAdding] = useState(false);
   const [moving, setMoving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -252,6 +308,7 @@ export function PaymentMethodsPage() {
       {adding && (
         <MethodCard
           canEdit={canEdit}
+          currencies={billingCurrencies}
           onCancel={() => setAdding(false)}
           onCreated={(name) => {
             setAdding(false);
@@ -265,6 +322,7 @@ export function PaymentMethodsPage() {
           key={m.code}
           method={m}
           canEdit={canEdit}
+          currencies={billingCurrencies}
           position={{ index: i, count: methods.length }}
           onMove={(by) => move(i, by)}
           moving={moving}
