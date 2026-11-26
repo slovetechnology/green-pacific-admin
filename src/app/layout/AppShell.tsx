@@ -391,6 +391,7 @@ const POOL: NavGroupItem[] = [
   { to: "/insurers", label: "Insurers" },
   { to: "/loss-adjusters", label: "Loss Adjusters" },
   { to: "/renewal-rules", label: "Renewal Rules" },
+  { to: "/cover-settings", label: "No Premium, No Cover" },
 ];
 const pick = (...paths: string[]): NavGroupItem[] =>
   paths.map((p) => {
@@ -428,7 +429,7 @@ const NAV_AREAS = [
   {
     key: "underwriting",
     label: "Policies & Claims",
-    items: pick("/transactions", "/renewals", "/renewal-rules", "/broking-slips", "/claims", "/clause-library", "/policy-templates"),
+    items: pick("/transactions", "/renewals", "/renewal-rules", "/cover-settings", "/broking-slips", "/claims", "/clause-library", "/policy-templates"),
   },
   { key: "partners", label: "Business Partners", items: pick("/insurers", "/loss-adjusters", "/producers", "/sub-brokers") },
   {

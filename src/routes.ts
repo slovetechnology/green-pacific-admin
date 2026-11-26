@@ -13,6 +13,7 @@ export default [
     route("commission-statements", "routes/finance/commission-statements.tsx"),
     route("policy-compliance", "routes/compliance/policy-compliance.tsx"),
     route("renewal-rules", "routes/underwriting/renewal-rules.tsx"),
+    route("cover-settings", "routes/underwriting/cover-settings.tsx"),
     route("commission-statements/:statementId", "routes/finance/commission-statements.$statementId.tsx"),
     route("lead-portal", "routes/sales/lead-portal.tsx"),
     route("lead-portal/leads", "routes/sales/lead-portal.leads.tsx"),

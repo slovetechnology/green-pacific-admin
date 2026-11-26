@@ -17,6 +17,8 @@ import { ScheduleView } from "../components/schedules/ScheduleView";
 import { REMINDER_LABELS, type PremiumInvoice } from "../lib/premiumInvoices";
 import { alertDialog, confirmDialog } from "@/shared/components/Dialogs";
 import { usePolicyModification } from "@/features/underwriting/endorsement-engine/usePolicyModification";
+import { CoverPanel } from "@/features/underwriting/cover/CoverPanel";
+import "@/shared/styles/endorsement-engine.css";
 import { PolicyLedgerTimeline } from "@/features/underwriting/endorsement-engine/components/PolicyLedgerTimeline";
 
 const SPLIT_TYPES = ["WritingAgent", "Referral", "Agency", "Other"] as const;
@@ -330,6 +332,7 @@ export function TransactionDetailPage() {
         </div>
       )}
 
+      {!t.parent_transaction_id && <CoverPanel txId={Number(txId)} />}
       {policyMod.ui}
 
       <MetricStrip metrics={metrics} label="Policy financial summary" />
