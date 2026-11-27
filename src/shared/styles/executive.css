@@ -90,8 +90,10 @@ a.exec-chip:hover { text-decoration: none; border-color: var(--brand); color: va
 
 /* ---- Workspace tabs ---- */
 .exec-workspace { display: flex; flex-direction: column; gap: var(--exec-gap); }
-.exec-tabs { display: flex; gap: 0.15rem; border-bottom: 1px solid var(--border); overflow-x: auto; }
-.exec-tab { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.55rem 0.9rem; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--text-secondary); font-size: var(--text-sm); font-weight: 700; white-space: nowrap; cursor: pointer; }
+/* The row's rule is an inset shadow, not a border: the active tab's underline sits on it without a negative
+   margin, which used to overflow the row by 1px and give it a stray scrollbar. */
+.exec-tabs { display: flex; gap: 0.15rem; box-shadow: inset 0 -1px 0 var(--border); overflow-x: auto; }
+.exec-tab { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.55rem 0.9rem; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--text-secondary); font-size: var(--text-sm); font-weight: 700; white-space: nowrap; cursor: pointer; }
 .exec-tab:hover { color: var(--text-primary); background: var(--surface-2); }
 .exec-tab.is-active { color: var(--brand); border-bottom-color: var(--brand-gold); }
 .exec-tab-count { padding: 0 0.4rem; border-radius: 999px; background: var(--surface-2); font-size: var(--text-xs); }
@@ -210,6 +212,10 @@ a.exec-chip:hover { text-decoration: none; border-color: var(--brand); color: va
 .clients-detail-head { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 1rem; }
 .clients-detail-head h2 { margin: 0.15rem 0 0; }
 .clients-detail-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.portal-signup-matches { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.portal-signup-matches li { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; padding: 0.45rem 0.6rem; border: 1px solid var(--border); border-radius: var(--exec-radius, 6px); }
+.portal-signup-link { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.portal-signup-link select { min-width: 14rem; max-width: 100%; }
 @media (max-width: 1000px) {
   .clients-split { grid-template-columns: minmax(0, 1fr); }
   .clients-detail { position: static; max-height: none; }

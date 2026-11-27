@@ -5,6 +5,8 @@ import { api } from "@/shared/api/client";
 import { fmtMoney, fmtMoneyShort } from "@/shared/lib/format";
 import { RoleGate } from "@/app/guards/RoleGate";
 import { StatusBadge } from "@/shared/components/StatusBadge";
+import { useAuth } from "@/features/platform/auth/AuthContext";
+import { PortalSignupsPanel, type PortalSignupsResponse } from "../components/PortalSignupsPanel";
 import "@/shared/styles/executive.css";
 
 interface ClientRow {
@@ -118,10 +120,21 @@ export function ClientsListPage() {
   const q = searchParams.get("q") || "";
   const selectedId = Number(searchParams.get("selected")) || null;
   const [qInput, setQInput] = useState(q);
+  // Agents see only their own book, and an unlinked sign-up is in nobody's, so they get no sign-ups tab.
+  const { user } = useAuth();
+  const canSeeSignups = Boolean(user && !user.isAgent);
+  const tab = canSeeSignups && searchParams.get("tab") === "signups" ? "signups" : "clients";
 
   const { data, isLoading } = useQuery({
     queryKey: ["clients", q, page],
     queryFn: () => api.get<ClientsListResponse>(`/api/clients?q=${encodeURIComponent(q)}&page=${page}`),
+    enabled: tab === "clients",
+  });
+  // Sign-ups not yet linked to a client. Fetched on both tabs so the tab can show how many are waiting.
+  const signups = useQuery({
+    queryKey: ["portal-signups", tab === "signups" ? q : "", tab === "signups" ? page : 1],
+    queryFn: () => api.get<PortalSignupsResponse>(tab === "signups" ? `/api/clients/portal-signups?q=${encodeURIComponent(q)}&page=${page}` : "/api/clients/portal-signups"),
+    enabled: canSeeSignups,
   });
   const rows = data?.clients ?? [];
   const selected = rows.find((c) => c.id === selectedId) ?? null;
@@ -137,14 +150,31 @@ export function ClientsListPage() {
 
   // Wide screens open with the first client showing, as the reference layout does.
   useEffect(() => {
+    if (tab !== "clients") return;
     if (!selected && rows.length && window.matchMedia("(min-width: 1000px)").matches) update({ selected: String(rows[0].id) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, selected]);
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
-    update({ q: qInput, page: "1", selected: "" });
+    update({ q: qInput, page: "1", selected: "", account: "" });
   }
+
+  function chooseTab(next: "clients" | "signups") {
+    if (next === tab) return;
+    setQInput("");
+    update({ tab: next === "signups" ? "signups" : "", q: "", page: "1", selected: "", account: "" });
+  }
+
+  const unfilteredSignups = !q || tab !== "signups" ? signups.data?.total : undefined;
+  const headerNote =
+    tab === "signups"
+      ? signups.data
+        ? `${signups.data.total.toLocaleString()} ${q ? "matching " : ""}portal sign-up${signups.data.total === 1 ? "" : "s"} not linked to a client`
+        : "Loading sign-ups…"
+      : data
+        ? `${data.total.toLocaleString()} ${q ? "matching " : ""}client${data.total === 1 ? "" : "s"}`
+        : "Loading clients…";
 
   return (
     <div className="exec">
@@ -152,7 +182,7 @@ export function ClientsListPage() {
         <div>
           <span className="exec-eyebrow">Clients & Sales</span>
           <h1>Clients</h1>
-          <p className="exec-dl-note">{data ? `${data.total.toLocaleString()} ${q ? "matching " : ""}client${data.total === 1 ? "" : "s"}` : "Loading clients…"}</p>
+          <p className="exec-dl-note">{headerNote}</p>
         </div>
         <RoleGate need="write">
           <div className="exec-header-actions">
@@ -169,10 +199,21 @@ export function ClientsListPage() {
         </RoleGate>
       </header>
 
+      {canSeeSignups && (
+        <div className="exec-tabs" role="tablist" aria-label="Client list">
+          <button type="button" role="tab" aria-selected={tab === "clients"} className={`exec-tab${tab === "clients" ? " is-active" : ""}`} onClick={() => chooseTab("clients")}>
+            Clients
+          </button>
+          <button type="button" role="tab" aria-selected={tab === "signups"} className={`exec-tab${tab === "signups" ? " is-active" : ""}`} onClick={() => chooseTab("signups")}>
+            Portal sign-ups (unlinked) {unfilteredSignups != null && <span className="exec-tab-count">{unfilteredSignups}</span>}
+          </button>
+        </div>
+      )}
+
       <form className="exec-filters" role="search" onSubmit={handleSearch}>
         <label className="exec-search">
           <span>Search</span>
-          <input type="search" placeholder="Name, reference, city…" value={qInput} onChange={(e) => setQInput(e.target.value)} />
+          <input type="search" placeholder={tab === "signups" ? "Name, email, phone…" : "Name, reference, city…"} value={qInput} onChange={(e) => setQInput(e.target.value)} />
         </label>
         <button type="submit" className="btn btn-secondary btn-sm">
           Search
@@ -183,7 +224,7 @@ export function ClientsListPage() {
             className="exec-filter-clear"
             onClick={() => {
               setQInput("");
-              update({ q: "", page: "1", selected: "" });
+              update({ q: "", page: "1", selected: "", account: "" });
             }}
           >
             Clear search
@@ -191,6 +232,9 @@ export function ClientsListPage() {
         )}
       </form>
 
+      {tab === "signups" ? (
+        <PortalSignupsPanel data={signups.data} isLoading={signups.isLoading} />
+      ) : (
       <div className="clients-split">
         <section className="clients-list" aria-label="Clients">
           {isLoading && <p className="exec-state">Loading clients…</p>}
@@ -255,6 +299,7 @@ export function ClientsListPage() {
           )}
         </section>
       </div>
+      )}
     </div>
   );
 }
