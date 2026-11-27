@@ -30,6 +30,10 @@ export function ClientMessageThreadPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["client-messages", "thread", threadId],
     queryFn: () => api.get<ThreadResponse>(`/api/client-messages/${threadId}`),
+    // A client's reply (portal or email) arrives on the server, not here: check for it while the page is open, and
+    // on coming back to the tab (the app turns focus refetching off by default). Paused while the tab is hidden.
+    refetchInterval: 10_000,
+    refetchOnWindowFocus: true,
   });
   const options = useQuery({
     queryKey: ["client-messages", "compose-options"],

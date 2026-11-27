@@ -35,6 +35,9 @@ export function ClientMessagesPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["client-messages", box, q, page],
     queryFn: () => api.get<ListResponse>(`/api/client-messages?box=${box}&q=${encodeURIComponent(q)}&page=${page}`),
+    // New client replies show up without a reload (paused while the tab is hidden).
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 
   function update(changes: Record<string, string>) {

@@ -10,6 +10,8 @@ export function ClientCorrespondence({ clientId }: { clientId: number }) {
   const { data, isLoading } = useQuery({
     queryKey: ["client-messages", "client", clientId],
     queryFn: () => api.get<{ threads: ThreadSummary[]; total: number }>(`/api/client-messages?box=all&client_id=${clientId}`),
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
   return (
     <div className="card">
