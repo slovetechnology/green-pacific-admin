@@ -99,6 +99,7 @@ const REPORT_ITEMS = [
   { to: "/reports/risk-matrix", label: "Risk Matrix" },
   { to: "/reports/loss-experience", label: "Loss Experience" },
   { to: "/reports/cancelled-transactions", label: "Cancelled Transactions" },
+  { to: "/reports/marine-declaration", label: "Marine Declaration" },
   { to: "/compliance/reports", label: "NAICOM Statutory Reports" },
   { to: "/compliance/returns", label: "NAICOM Returns Workbench" },
   { to: "/compliance/statutory-registers", label: "Board & AML Registers" },

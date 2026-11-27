@@ -109,6 +109,7 @@ export default [
     route("reports/risk-matrix", "routes/reports/reports.risk-matrix.tsx"),
     route("reports/loss-experience", "routes/reports/reports.loss-experience.tsx"),
     route("reports/cancelled-transactions", "routes/reports/reports.cancelled-transactions.tsx"),
+    route("reports/marine-declaration", "routes/reports/reports.marine-declaration.tsx"),
     route("compliance/reports", "routes/compliance/compliance.reports.tsx"),
     route("compliance/returns", "routes/compliance/compliance.returns.tsx"),
     route("compliance/statutory-settings", "routes/compliance/compliance.statutory-settings.tsx"),
