@@ -82,6 +82,8 @@ export function ClaimDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [eventStatus, setEventStatus] = useState("");
   const [note, setNote] = useState("");
+  // Settling asks what was paid; empty means "the approved amount already on the claim" (the backend checks).
+  const [settledAmount, setSettledAmount] = useState("");
   const [insurerClaimNo, setInsurerClaimNo] = useState("");
   const [dateNotified, setDateNotified] = useState(new Date().toISOString().slice(0, 10));
   const [docType, setDocType] = useState("");
@@ -104,10 +106,12 @@ export function ClaimDetailPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await api.post(`/api/claims/${claimId}/events`, { status: eventStatus || claim.status, note });
+      const status = eventStatus || claim.status;
+      await api.post(`/api/claims/${claimId}/events`, { status, note, ...(status === "Settled" && settledAmount.trim() ? { settled_amount: settledAmount } : {}) });
       await queryClient.invalidateQueries({ queryKey: ["claims", claimId] });
       setNote("");
       setEventStatus("");
+      setSettledAmount("");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -526,6 +530,20 @@ export function ClaimDetailPage() {
                   ))}
                 </select>
               </div>
+              {(eventStatus || claim.status) === "Settled" && claim.status !== "Settled" && (
+                <div className="field">
+                  <label htmlFor="settled_amount">Amount paid (₦)</label>
+                  <input
+                    id="settled_amount"
+                    inputMode="decimal"
+                    required={!(claim.approved_amount > 0)}
+                    placeholder={claim.approved_amount > 0 ? String(claim.approved_amount) : "e.g. 1,500"}
+                    value={settledAmount}
+                    onChange={(e) => setSettledAmount(e.target.value)}
+                  />
+                  <small className="muted">The customer sees this as paid out.{claim.approved_amount > 0 ? " Leave empty to use the approved amount." : ""}</small>
+                </div>
+              )}
               <div className="field span-2">
                 <label htmlFor="note">Note</label>
                 <input id="note" value={note} onChange={(e) => setNote(e.target.value)} />
